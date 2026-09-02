@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 import 'dart:io';
+import 'package:sistema_ocs/core/config/api_config.dart';
 
 class UrgentRQService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://172.20.34.174:8000',
+      baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
     ),

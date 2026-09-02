@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:sistema_ocs/core/config/api_config.dart';
 import 'package:sistema_ocs/features/ordenes_compra/models/orden_compra_request.dart';
 
 class OrdenCompraService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://172.20.34.174:8000',
+      baseUrl: ApiConfig.baseUrl,
       headers: {'Content-Type': 'application/json'},
       connectTimeout: const Duration(seconds: 10),
     ),

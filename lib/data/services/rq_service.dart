@@ -1,14 +1,14 @@
 // lib/data/services/rq_service.dart
 
 import 'package:dio/dio.dart';
+import 'package:sistema_ocs/core/config/api_config.dart';
 import 'package:sistema_ocs/data/models/rq_model.dart'; // Crearemos este modelo
 import 'package:sistema_ocs/data/models/rq_item_model.dart'; // Y este
 
 class RqService {
   final Dio _dio;
-  final String _baseUrl = 'http://172.20.34.174:8000'; // ✅ USAR TU IP DE FASTAPI
 
-  RqService() : _dio = Dio(BaseOptions(baseUrl: 'http://172.20.34.174:8000')); 
+  RqService() : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
 
   // 💡 GET /rqs/
   Future<List<RQResponse>> listRqs() async {

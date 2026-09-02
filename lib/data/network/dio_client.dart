@@ -1,15 +1,16 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sistema_ocs/core/config/api_config.dart';
 
 // Definimos el storage aquí para que sea accesible
 const _storage = FlutterSecureStorage();
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    baseUrl: 'https://ramissac-api.sorbits.site',
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
+    baseUrl: ApiConfig.baseUrl,  // ← CENTRALIZADO EN ApiConfig
+    connectTimeout: Duration(seconds: ApiConfig.connectTimeout),
+    receiveTimeout: Duration(seconds: ApiConfig.receiveTimeout),
   ));
 
   // AGREGAMOS EL INTERCEPTOR
