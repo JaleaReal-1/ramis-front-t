@@ -18,7 +18,6 @@ import 'package:sistema_ocs/features/ordenes_compra/screens/subircomprobantescre
 import 'package:sistema_ocs/features/requerimientos/rqs_list_screen.dart';
 import 'package:sistema_ocs/features/requerimientos/upload_pdf_screen.dart';
 import 'package:sistema_ocs/features/rq_urgente/rq_list_screen.dart'; // Nueva
-import 'package:sistema_ocs/features/transportes/screens/transportes_home_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -39,7 +38,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     const ShippingListScreen(),
     const InventoryScreen(),
     const UploadPDFScreen(),
-    const TransportesHomeScreen(role: 'user'),
   ];
 
   void _onMenuItemTap(int index) => setState(() => _selectedIndex = index);

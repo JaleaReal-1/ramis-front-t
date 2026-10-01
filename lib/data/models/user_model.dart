@@ -21,6 +21,10 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    // Buscamos la clave del rol (puede venir como 'role', 'rol', o caer en 'cargo')
+    final rawRole = json['role'] ?? json['rol'] ?? json['cargo'];
+    final parsedRole = rawRole?.toString().trim();
+
     return UserModel(
       id: json['id'] as int,
       nombre: json['nombre'] as String,
@@ -29,7 +33,8 @@ class UserModel {
       cargo: json['cargo'] as String?,
       codigoUnico: json['codigo_unico'] as String?,
       email: json['email'] as String,
-      role: json['role'] as String,
+      // Se asigna 'user' por defecto en vez de un valor inválido
+      role: parsedRole == null || parsedRole.isEmpty ? 'user' : parsedRole,
     );
   }
 

@@ -7,14 +7,15 @@ import 'package:sistema_ocs/data/models/rq_model.dart';
 import 'package:sistema_ocs/features/requerimientos/rq_providers.dart';
 import 'package:sistema_ocs/features/requerimientos/rq_detail_screen.dart';
 
-
 class RQsListScreen extends ConsumerWidget {
   const RQsListScreen({super.key});
 
-  void _handleDelete(BuildContext context, WidgetRef ref, int rqId, String nroRq) {
+  void _handleDelete(
+      BuildContext context, WidgetRef ref, int rqId, String nroRq) {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog( // Cambiado a Dialog estándar para mejor control de tamaño
+      builder: (ctx) => Dialog(
+        // Cambiado a Dialog estándar para mejor control de tamaño
         backgroundColor: Colors.transparent,
         child: AppCard(
           backgroundColor: AppTheme.background,
@@ -30,7 +31,8 @@ class RQsListScreen extends ConsumerWidget {
                 const SizedBox(height: AppTheme.spacingL),
                 Text(
                   '¿Está seguro de eliminar el Requerimiento $nroRq? Esta acción es irreversible.',
-                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+                  style: AppTheme.bodyMedium
+                      .copyWith(color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppTheme.spacingXL),
@@ -40,7 +42,8 @@ class RQsListScreen extends ConsumerWidget {
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(ctx).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                           shape: RoundedRectangleBorder(
                             borderRadius: AppTheme.borderRadiusMedium,
                           ),
@@ -48,7 +51,8 @@ class RQsListScreen extends ConsumerWidget {
                         ),
                         child: Text(
                           'Cancelar',
-                          style: AppTheme.labelLarge.copyWith(color: AppTheme.textSecondary),
+                          style: AppTheme.labelLarge
+                              .copyWith(color: AppTheme.textSecondary),
                         ),
                       ),
                     ),
@@ -59,11 +63,14 @@ class RQsListScreen extends ConsumerWidget {
                         onPressed: () async {
                           Navigator.of(ctx).pop();
                           try {
-                            await ref.read(rqListNotifierProvider.notifier).deleteRq(rqId);
+                            await ref
+                                .read(rqListNotifierProvider.notifier)
+                                .deleteRq(rqId);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('RQ $nroRq eliminado con éxito.'),
+                                  content:
+                                      Text('RQ $nroRq eliminado con éxito.'),
                                   backgroundColor: AppTheme.success,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -117,7 +124,8 @@ class RQsListScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppTheme.border.withOpacity(0.3),
                         borderRadius: AppTheme.borderRadiusMedium,
@@ -126,9 +134,11 @@ class RQsListScreen extends ConsumerWidget {
                         style: AppTheme.bodyMedium,
                         decoration: InputDecoration(
                           hintText: 'Buscar RQ...',
-                          hintStyle: AppTheme.bodySmall.copyWith(color: AppTheme.textDisabled),
+                          hintStyle: AppTheme.bodySmall
+                              .copyWith(color: AppTheme.textDisabled),
                           border: InputBorder.none,
-                          icon: Icon(Icons.search, color: AppTheme.primary, size: 20),
+                          icon: Icon(Icons.search,
+                              color: AppTheme.primary, size: 20),
                         ),
                       ),
                     ),
@@ -154,7 +164,8 @@ class RQsListScreen extends ConsumerWidget {
               error: (e, s) => Center(child: Text('Error al cargar datos')),
               data: (rqs) {
                 if (rqs.isEmpty) {
-                  return const Center(child: Text('No hay requerimientos disponibles'));
+                  return const Center(
+                      child: Text('No hay requerimientos disponibles'));
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -164,7 +175,8 @@ class RQsListScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
                       child: RQCard(
                         rq: rqs[index],
-                        onDelete: () => _handleDelete(context, ref, rqs[index].id, rqs[index].nroRq),
+                        onDelete: () => _handleDelete(
+                            context, ref, rqs[index].id, rqs[index].nroRq),
                       ),
                     );
                   },
@@ -188,7 +200,7 @@ class RQCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = AppTheme.getStatusColor(rq.estado);
     final progressColor = AppTheme.getProgressColor(rq.progresoCompra);
-    
+
     return AppCard(
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -205,11 +217,13 @@ class RQCard extends StatelessWidget {
                     children: [
                       Text(
                         rq.nroRq,
-                        style: AppTheme.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                        style: AppTheme.titleLarge
+                            .copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         'Emisión: ${rq.fechaEmision.toLocal().toString().split(' ')[0]}',
-                        style: AppTheme.bodySmall.copyWith(color: AppTheme.textDisabled),
+                        style: AppTheme.bodySmall
+                            .copyWith(color: AppTheme.textDisabled),
                       ),
                     ],
                   ),
@@ -253,8 +267,10 @@ class RQCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Progreso de Compra', style: AppTheme.labelMedium),
-                      Text('${rq.progresoCompra.toStringAsFixed(0)}%', 
-                        style: TextStyle(color: progressColor, fontWeight: FontWeight.bold)),
+                      Text('${rq.progresoCompra.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                              color: progressColor,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: AppTheme.spacingS),
@@ -272,14 +288,18 @@ class RQCard extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline, color: AppTheme.error),
                 ),
                 const SizedBox(width: AppTheme.spacingS),
-                AppButton(
-                  text: 'Ver Detalles',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => RQDetailScreen(rq: rq)),
-                    );
-                  },
-                  icon: Icons.visibility_outlined,
+                Flexible(
+                  child: AppButton(
+                    text: 'Ver Detalles',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RQDetailScreen(rq: rq),
+                        ),
+                      );
+                    },
+                    icon: Icons.visibility_outlined,
+                  ),
                 ),
               ],
             ),

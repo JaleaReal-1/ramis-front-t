@@ -8,7 +8,7 @@ const _storage = FlutterSecureStorage();
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    baseUrl: ApiConfig.baseUrl,  // ← CENTRALIZADO EN ApiConfig
+    baseUrl: ApiConfig.baseUrl, // ← CENTRALIZADO EN ApiConfig
     connectTimeout: Duration(seconds: ApiConfig.connectTimeout),
     receiveTimeout: Duration(seconds: ApiConfig.receiveTimeout),
   ));
@@ -19,12 +19,12 @@ final dioProvider = Provider<Dio>((ref) {
       onRequest: (options, handler) async {
         // Leemos el token del almacenamiento seguro
         final token = await _storage.read(key: 'jwt_token');
-        
+
         // Si el token existe, lo inyectamos en los Headers
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
-        
+
         print('🚀 ENVIANDO [${options.method}] a ${options.path}');
         return handler.next(options); // Continúa la petición
       },

@@ -38,7 +38,10 @@ class AuthService {
         // Guardar usuario completo en storage
         final userJson = data['user'] as Map<String, dynamic>?;
         if (userJson != null) {
-          print('Datos del usuario recibidos: $userJson');
+          // Inyectamos el rol crudo desde la raíz, ya que el backend lo omite dentro de 'user'
+          userJson['role'] = tokenModel.role;
+          print('Datos del usuario con rol inyectado: $userJson');
+          
           final user = UserModel.fromJson(userJson);
           await _storage.write(key: 'user_data', value: jsonEncode(user.toJson()));
           print('Usuario completo guardado en secure storage OK');
