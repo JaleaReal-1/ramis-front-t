@@ -25,3 +25,22 @@ final rutasListProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>
   final repo = ref.watch(transporteRepositoryProvider);
   return repo.listarRutas();
 });
+
+/// Lista completa de jornadas (para el admin)
+final jornadasListProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final repo = ref.watch(transporteRepositoryProvider);
+  return repo.listarJornadas().then((list) =>
+    list.map((j) => {
+      'id': j.id,
+      'conductor_id': j.conductorId,
+      'vehiculo_id': j.vehiculoId,
+      'estado': j.estado,
+      'accion_tipo': j.accionTipo,
+      'observaciones': j.observaciones,
+      'alerta_horas': j.alertaHoras,
+      'alerta_km': j.alertaKm,
+      'fecha_inicio': j.fechaInicio?.toIso8601String(),
+      'fecha_fin': j.fechaFin?.toIso8601String(),
+    }).toList()
+  );
+});

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
 import 'package:sistema_ocs/features/transportes/domain/failures/transport_failure.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/fuel_gauge_selector.dart';
 import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dart';
 
 class RegistroAccionForm extends ConsumerStatefulWidget {
@@ -14,7 +15,7 @@ class RegistroAccionForm extends ConsumerStatefulWidget {
 
 class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   final _formKey = GlobalKey<FormState>();
-  
+
   static const _acciones = [
     "Empezar a Conducir",
     "Operar Grúa",
@@ -55,12 +56,29 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   String? _rutaSeleccionada;
   double _nivelCombustible = 100;
   final _observacionesController = TextEditingController();
+  final _kmController = TextEditingController();
+  bool _loadingKm = false;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _observacionesController.dispose();
+    _kmController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchKilometraje(int? vehiculoId) async {
+    if (vehiculoId == null) return;
+    setState(() => _loadingKm = true);
+    try {
+      final repo = ref.read(transporteRepositoryProvider);
+      final km = await repo.obtenerKilometrajeVehiculo(vehiculoId);
+      _kmController.text = km.toStringAsFixed(1);
+    } catch (_) {
+      // no-op, el campo queda vacío
+    } finally {
+      if (mounted) setState(() => _loadingKm = false);
+    }
   }
 
   @override
@@ -140,7 +158,10 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                               '${v['placa']} - ${v['marca']} ${v['modelo']}'),
                         ))
                     .toList(),
-                onChanged: (val) => setState(() => _vehiculoId = val),
+                onChanged: (val) {
+                  setState(() => _vehiculoId = val);
+                  _fetchKilometraje(val);
+                },
                 validator: (val) =>
                     val == null ? 'Seleccione un vehículo' : null,
               );
@@ -148,6 +169,28 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
             loading: () => const LinearProgressIndicator(),
             error: (e, _) => Text('Error al cargar vehículos: $e',
                 style: AppTheme.bodySmall.copyWith(color: AppTheme.error)),
+          ),
+          const SizedBox(height: AppTheme.spacingL),
+
+          // ── Kilometraje Actual ──
+          TextFormField(
+            controller: _kmController,
+            decoration: AppTheme.inputDecoration.copyWith(
+              labelText: 'Kilometraje Actual',
+              prefixIcon: const Icon(Icons.speed),
+              helperText: 'Km registrado del vehículo al inicio',
+              suffixIcon: _loadingKm
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: AppTheme.spacingL),
 
@@ -166,15 +209,9 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
           const SizedBox(height: AppTheme.spacingL),
 
           // ── Nivel de Combustible ──
-          Text('Nivel de Combustible: ${_nivelCombustible.toInt()}%',
-              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-          Slider(
-            value: _nivelCombustible,
-            min: 0,
-            max: 100,
-            divisions: 4,
-            label: '${_nivelCombustible.toInt()}%',
-            onChanged: (val) => setState(() => _nivelCombustible = val),
+          FuelGaugeSelector(
+            value: _nivelCombustible.toInt(),
+            onChanged: (val) => setState(() => _nivelCombustible = val.toDouble()),
           ),
           const SizedBox(height: AppTheme.spacingL),
 
@@ -241,7 +278,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Validate that all checklist items are true
     if (_checklistFlash.values.any((v) => !v)) {
       ScaffoldMessenger.of(context).showSnackBar(

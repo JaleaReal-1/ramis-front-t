@@ -13,6 +13,11 @@ class JornadaTransporte {
     this.nivelCombustible,
     this.checklistFlash,
     this.observaciones,
+    this.kmInicial,
+    this.kmFinal,
+    this.horasEfectivas,
+    this.alertaHoras = false,
+    this.alertaKm = false,
   });
 
   final int id;
@@ -28,6 +33,11 @@ class JornadaTransporte {
   final int? nivelCombustible;
   final Map<String, dynamic>? checklistFlash;
   final String? observaciones;
+  final double? kmInicial;
+  final double? kmFinal;
+  final double? horasEfectivas;
+  final bool alertaHoras;
+  final bool alertaKm;
 }
 
 class Checklist {

@@ -15,6 +15,11 @@ class JornadaTransporteModel extends JornadaTransporte {
     super.nivelCombustible,
     super.checklistFlash,
     super.observaciones,
+    super.kmInicial,
+    super.kmFinal,
+    super.horasEfectivas,
+    super.alertaHoras,
+    super.alertaKm,
   });
 
   factory JornadaTransporteModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +37,11 @@ class JornadaTransporteModel extends JornadaTransporte {
       nivelCombustible: json['nivel_combustible'] != null ? _int(json, 'nivel_combustible') : null,
       checklistFlash: json['checklist_flash'] as Map<String, dynamic>?,
       observaciones: json['observaciones'] as String?,
+      kmInicial: (json['km_inicial'] as num?)?.toDouble(),
+      kmFinal: (json['km_final'] as num?)?.toDouble(),
+      horasEfectivas: (json['horas_efectivas'] as num?)?.toDouble(),
+      alertaHoras: json['alerta_horas'] as bool? ?? false,
+      alertaKm: json['alerta_km'] as bool? ?? false,
     );
   }
 }

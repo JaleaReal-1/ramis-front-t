@@ -25,6 +25,14 @@ class TransporteRepositoryImpl {
     return JornadaTransporteModel.fromJson(_map(res.data));
   }
 
+  Future<double> obtenerKilometrajeVehiculo(int vehiculoId) async {
+    final res = await _request(
+      () => _dio.get('${ApiConfig.baseUrl}/api/vehiculos/$vehiculoId/kilometraje'),
+    );
+    final data = _map(res.data);
+    return (data['kilometraje_actual'] as num?)?.toDouble() ?? 0.0;
+  }
+
   Future<List<JornadaTransporte>> listarJornadas() async {
     final res = await _request(
       () => _dio.get('${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}'),
