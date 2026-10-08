@@ -21,6 +21,10 @@ class JornadaTransporte {
     this.detallesGrua,
     this.detallesCombustible,
     this.detallesMantenimiento,
+    this.detallesInspeccion,
+    this.detallesCocada,
+    this.detallesTorque,
+    this.detallesTrabajosExternos,
   });
 
   final int id;
@@ -44,6 +48,10 @@ class JornadaTransporte {
   final Map<String, dynamic>? detallesGrua;
   final Map<String, dynamic>? detallesCombustible;
   final Map<String, dynamic>? detallesMantenimiento;
+  final Map<String, dynamic>? detallesInspeccion;
+  final Map<String, dynamic>? detallesCocada;
+  final Map<String, dynamic>? detallesTorque;
+  final Map<String, dynamic>? detallesTrabajosExternos;
 }
 
 class Checklist {
@@ -155,6 +163,44 @@ class AccionMantenimientoRequest {
       };
 }
 
+class AccionInspeccionRequest {
+  const AccionInspeccionRequest({
+    required this.fechaInspeccion,
+    required this.fechaVencimiento,
+  });
+
+  final DateTime fechaInspeccion;
+  final DateTime fechaVencimiento;
+
+  Map<String, dynamic> toJson() => {
+        'fecha_inspeccion': _fechaApi(fechaInspeccion),
+        'fecha_vencimiento': _fechaApi(fechaVencimiento),
+      };
+}
+
+String _fechaApi(DateTime value) => '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';
+
+class AccionCocadaRequest {
+  const AccionCocadaRequest({required this.medida});
+  final double medida;
+  Map<String, dynamic> toJson() => {'medida': medida};
+}
+
+class AccionTorqueRequest {
+  const AccionTorqueRequest({required this.medida});
+  final double medida;
+  Map<String, dynamic> toJson() => {'medida': medida};
+}
+
+class AccionTrabajosExternosRequest {
+  const AccionTrabajosExternosRequest({required this.descripcionTrabajos});
+  final String descripcionTrabajos;
+  Map<String, dynamic> toJson() =>
+      {'descripcion_trabajos': descripcionTrabajos};
+}
+
 class RegistroAccionRequest {
   const RegistroAccionRequest({
     required this.accionTipo,
@@ -162,10 +208,14 @@ class RegistroAccionRequest {
     this.ruta,
     required this.nivelCombustible,
     this.checklistFlash,
-    this.observaciones,
+    required this.observaciones,
     this.detallesGrua,
     this.detallesCombustible,
     this.detallesMantenimiento,
+    this.detallesInspeccion,
+    this.detallesCocada,
+    this.detallesTorque,
+    this.detallesTrabajosExternos,
   });
 
   final String accionTipo;
@@ -173,10 +223,14 @@ class RegistroAccionRequest {
   final String? ruta;
   final int nivelCombustible;
   final Map<String, dynamic>? checklistFlash;
-  final String? observaciones;
+  final String observaciones;
   final AccionGruaRequest? detallesGrua;
   final AccionCombustibleRequest? detallesCombustible;
   final AccionMantenimientoRequest? detallesMantenimiento;
+  final AccionInspeccionRequest? detallesInspeccion;
+  final AccionCocadaRequest? detallesCocada;
+  final AccionTorqueRequest? detallesTorque;
+  final AccionTrabajosExternosRequest? detallesTrabajosExternos;
 
   Map<String, dynamic> toJson() => {
         'accion_tipo': accionTipo,
@@ -184,13 +238,18 @@ class RegistroAccionRequest {
         if (ruta != null) 'ruta': ruta,
         'nivel_combustible': nivelCombustible,
         if (checklistFlash != null) 'checklist_flash': checklistFlash,
-        if (observaciones != null && observaciones!.trim().isNotEmpty)
-          'observaciones': observaciones,
+        'observaciones': observaciones.trim(),
         if (detallesGrua != null) 'detalles_grua': detallesGrua!.toJson(),
         if (detallesCombustible != null)
           'detalles_combustible': detallesCombustible!.toJson(),
         if (detallesMantenimiento != null)
           'detalles_mantenimiento': detallesMantenimiento!.toJson(),
+        if (detallesInspeccion != null)
+          'detalles_inspeccion': detallesInspeccion!.toJson(),
+        if (detallesCocada != null) 'detalles_cocada': detallesCocada!.toJson(),
+        if (detallesTorque != null) 'detalles_torque': detallesTorque!.toJson(),
+        if (detallesTrabajosExternos != null)
+          'detalles_trabajos_externos': detallesTrabajosExternos!.toJson(),
       };
 }
 

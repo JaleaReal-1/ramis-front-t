@@ -8,6 +8,10 @@ import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dar
 import 'package:sistema_ocs/features/transportes/presentation/widgets/dynamic_actions/grua_form_widget.dart';
 import 'package:sistema_ocs/features/transportes/presentation/widgets/dynamic_actions/combustible_form_widget.dart';
 import 'package:sistema_ocs/features/transportes/presentation/widgets/dynamic_actions/mantenimiento_form_widget.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/inspeccion_form_widget.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/cocada_form_widget.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/torque_form_widget.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/trabajos_externos_form_widget.dart';
 
 class RegistroAccionForm extends ConsumerStatefulWidget {
   const RegistroAccionForm({super.key, this.onRegistered});
@@ -100,6 +104,10 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   AccionGruaRequest? _detallesGrua;
   AccionCombustibleRequest? _detallesCombustible;
   AccionMantenimientoRequest? _detallesMantenimiento;
+  AccionInspeccionRequest? _detallesInspeccion;
+  AccionCocadaRequest? _detallesCocada;
+  AccionTorqueRequest? _detallesTorque;
+  AccionTrabajosExternosRequest? _detallesTrabajosExternos;
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +140,10 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                   _detallesGrua = null;
                   _detallesCombustible = null;
                   _detallesMantenimiento = null;
+                  _detallesInspeccion = null;
+                  _detallesCocada = null;
+                  _detallesTorque = null;
+                  _detallesTrabajosExternos = null;
                 }),
                 validator: (val) =>
                     val == null ? 'Seleccione una acción' : null,
@@ -154,40 +166,42 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                       onChanged: (val) =>
                           setState(() => _detallesMantenimiento = val)),
                 ),
-              ] else if (_accionSeleccionada != null &&
-                  _accionSeleccionada !=
-                      "Reporte de Incidencias u Observaciones") ...[
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.construction,
-                          size: 48, color: AppTheme.textDisabled),
-                      SizedBox(height: AppTheme.spacingM),
-                      Text(
-                        'Formulario en construcción para esta acción.',
-                        textAlign: TextAlign.center,
-                        style: AppTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+              ] else if (_accionSeleccionada ==
+                  "Check List y/o V°B° de vehículos") ...[
+                _buildChecklistFlash(),
+              ] else if (_accionSeleccionada == "Inspección Técnica") ...[
+                InspeccionFormWidget(
+                  onChanged: (value) =>
+                      setState(() => _detallesInspeccion = value),
+                ),
+              ] else if (_accionSeleccionada == "Medición de Cocada") ...[
+                CocadaFormWidget(
+                  onChanged: (value) => setState(() => _detallesCocada = value),
+                ),
+              ] else if (_accionSeleccionada == "Medición de Torque") ...[
+                TorqueFormWidget(
+                  onChanged: (value) => setState(() => _detallesTorque = value),
+                ),
+              ] else if (_accionSeleccionada == "Trabajos a Externos") ...[
+                TrabajosExternosFormWidget(
+                  onChanged: (value) =>
+                      setState(() => _detallesTrabajosExternos = value),
                 ),
               ],
               const SizedBox(height: AppTheme.spacingL),
               TextFormField(
                 controller: _observacionesController,
                 decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Observaciones (Opcional)',
+                  labelText: 'OBSERVACIONES',
                   alignLabelWithHint: true,
                   helperText:
                       'Informar si hay alguna condición para revisar y/o reparar, reponer, implementar u oportunidades de mejora',
                   helperMaxLines: 5,
                 ),
                 maxLines: 3,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Ingrese observaciones'
+                    : null,
               ),
               const SizedBox(height: AppTheme.spacingXL),
               SizedBox(
@@ -305,9 +319,12 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                 : null,
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (value) => value == null || value.isEmpty
-              ? 'Espere a que se cargue el kilometraje'
-              : null,
+          validator: (value) {
+            final km = double.tryParse(value ?? '');
+            return km == null || km <= 0
+                ? 'El kilometraje inicial debe ser mayor que cero'
+                : null;
+          },
         ),
         const SizedBox(height: AppTheme.spacingL),
 
@@ -380,8 +397,15 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
           ),
         ],
         const SizedBox(height: AppTheme.spacingL),
+        _buildChecklistFlash(),
+      ],
+    );
+  }
 
-        // ── Check List Flash ──
+  Widget _buildChecklistFlash() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         Text('Check List Flash (Obligatorio)',
             style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: AppTheme.spacingS),
@@ -397,11 +421,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
               return CheckboxListTile(
                 title: Text(item, style: AppTheme.bodySmall, softWrap: true),
                 value: _checklistFlash[item],
-                onChanged: (val) {
-                  setState(() {
-                    _checklistFlash[item] = val ?? false;
-                  });
-                },
+                onChanged: (val) =>
+                    setState(() => _checklistFlash[item] = val ?? false),
                 dense: true,
                 controlAffinity: ListTileControlAffinity.leading,
               );
@@ -429,8 +450,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       return;
     }
 
-    // Validate that all checklist items are true only if we are driving
-    if (_accionSeleccionada == "Empezar a Conducir" &&
+    if ((_accionSeleccionada == "Empezar a Conducir" ||
+            _accionSeleccionada == "Check List y/o V°B° de vehículos") &&
         _checklistFlash.values.any((v) => !v)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -453,13 +474,18 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                       : _rutaSeleccionada)
                   : null,
               nivelCombustible: _nivelCombustible!,
-              checklistFlash: _accionSeleccionada == 'Empezar a Conducir'
+              checklistFlash: _accionSeleccionada == 'Empezar a Conducir' ||
+                      _accionSeleccionada == 'Check List y/o V°B° de vehículos'
                   ? _checklistFlash
                   : null,
-              observaciones: _observacionesController.text,
+              observaciones: _observacionesController.text.trim(),
               detallesGrua: _detallesGrua,
               detallesCombustible: _detallesCombustible,
               detallesMantenimiento: _detallesMantenimiento,
+              detallesInspeccion: _detallesInspeccion,
+              detallesCocada: _detallesCocada,
+              detallesTorque: _detallesTorque,
+              detallesTrabajosExternos: _detallesTrabajosExternos,
             ),
           );
       if (!mounted) return;

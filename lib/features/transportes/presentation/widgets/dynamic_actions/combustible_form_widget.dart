@@ -40,18 +40,23 @@ class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
           controller: _galonesController,
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'CANTIDAD COMBUSTIBLE ABASTECIDO EN GALONES',
+            helperText:
+                'Colocar la cantidad de galones abastecidos en el grifo',
+            helperMaxLines: 2,
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) {
             final cantidad = _galones(value ?? '');
-            return cantidad == null || cantidad <= 0
-                ? 'Ingrese una cantidad válida de galones'
+            return cantidad == null || cantidad < 0.1 || cantidad > 100
+                ? 'Ingrese entre 0.1 y 100 galones'
                 : null;
           },
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: AppTheme.spacingL),
         Text('NIVEL DE COMBUSTIBLE FINAL', style: AppTheme.bodyMedium),
+        Text('Colocar el nivel después de abastecer',
+            style: AppTheme.bodySmall),
         const SizedBox(height: AppTheme.spacingS),
         FormField<int>(
           validator: (value) =>

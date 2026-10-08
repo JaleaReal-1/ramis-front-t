@@ -31,7 +31,7 @@ class _FakeRepository extends TransporteRepositoryImpl {
 }
 
 void main() {
-  testWidgets('Incidencias va directo a observaciones y F conserva placeholder',
+  testWidgets('Incidencias va a observaciones y F muestra el checklist',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -77,7 +77,7 @@ void main() {
     expect(find.text('Formulario en construcción para esta acción.'),
         findsNothing);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Observaciones (Opcional)'),
+      find.widgetWithText(TextFormField, 'OBSERVACIONES'),
       'Ruido en el motor',
     );
     final submit = find.text('Registrar Acción');
@@ -92,10 +92,23 @@ void main() {
     await tester.ensureVisible(action);
     await tester.tap(action);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Inspección Técnica').last);
+    await tester.tap(find.text('Check List y/o V°B° de vehículos').last);
     await tester.pumpAndSettle();
-    expect(find.text('Formulario en construcción para esta acción.'),
-        findsOneWidget);
+    expect(find.text('Check List Flash (Obligatorio)'), findsOneWidget);
+    expect(find.byType(CheckboxListTile), findsNWidgets(11));
+    for (final accionCampo in {
+      'Inspección Técnica': 'FECHA DE INSPECCIÓN TÉCNICA',
+      'Medición de Cocada': 'COCADA',
+      'Medición de Torque': 'TORQUE',
+      'Trabajos a Externos': 'TRABAJOS',
+    }.entries) {
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(accionCampo.key).last);
+      await tester.pumpAndSettle();
+      expect(find.text(accionCampo.value), findsOneWidget);
+    }
     expect(tester.takeException(), isNull);
   });
 
@@ -136,7 +149,7 @@ void main() {
     expect(find.text('Kilometraje Inicial'), findsOneWidget);
     expect(find.byType(FuelGaugeSelector), findsOneWidget);
     expect(find.text('ACCIÓN A REALIZAR'), findsOneWidget);
-    expect(find.text('Observaciones (Opcional)'), findsOneWidget);
+    expect(find.text('OBSERVACIONES'), findsOneWidget);
     expect(find.text('Registrar Acción'), findsOneWidget);
 
     await tester.tap(find.byType(DropdownButtonFormField<int>));
@@ -192,7 +205,7 @@ void main() {
       '11.5',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Observaciones (Opcional)'),
+      find.widgetWithText(TextFormField, 'OBSERVACIONES'),
       'Sin novedad',
     );
     final submit = find.text('Registrar Acción');

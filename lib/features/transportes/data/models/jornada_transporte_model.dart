@@ -23,6 +23,10 @@ class JornadaTransporteModel extends JornadaTransporte {
     super.detallesGrua,
     super.detallesCombustible,
     super.detallesMantenimiento,
+    super.detallesInspeccion,
+    super.detallesCocada,
+    super.detallesTorque,
+    super.detallesTrabajosExternos,
   });
 
   factory JornadaTransporteModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +57,11 @@ class JornadaTransporteModel extends JornadaTransporte {
           json['detalles_combustible'] as Map<String, dynamic>?,
       detallesMantenimiento:
           json['detalles_mantenimiento'] as Map<String, dynamic>?,
+      detallesInspeccion: json['detalles_inspeccion'] as Map<String, dynamic>?,
+      detallesCocada: json['detalles_cocada'] as Map<String, dynamic>?,
+      detallesTorque: json['detalles_torque'] as Map<String, dynamic>?,
+      detallesTrabajosExternos:
+          json['detalles_trabajos_externos'] as Map<String, dynamic>?,
     );
   }
 }

@@ -43,7 +43,11 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           controller: _actividadController,
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'ACTIVIDAD A REALIZAR',
+            helperText: 'Describir la actividad que se realiza con la grúa',
+            helperMaxLines: 2,
+            alignLabelWithHint: true,
           ),
+          maxLines: 3,
           validator: (value) => value == null || value.trim().isEmpty
               ? 'Describa la actividad'
               : null,
@@ -58,7 +62,7 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) {
             final numero = _numero(value ?? '');
-            return numero == null || numero < 0
+            return numero == null || numero <= 0
                 ? 'Ingrese un horómetro inicial válido'
                 : null;
           },
@@ -73,7 +77,7 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) {
             final numero = _numero(value ?? '');
-            if (numero == null || numero < 0) {
+            if (numero == null || numero <= 0) {
               return 'Ingrese un horómetro final válido';
             }
             final inicial = _numero(_horometroInicialController.text);

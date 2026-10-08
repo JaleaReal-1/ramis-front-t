@@ -283,6 +283,19 @@ class _DetalleAccion extends ConsumerWidget {
                   _dato('Descripción',
                       detalle['descripcion_correctivo']?.toString()),
                 ],
+                if (accion.detallesInspeccion case final detalle?) ...[
+                  _dato('Fecha de inspección',
+                      detalle['fecha_inspeccion']?.toString()),
+                  _dato(
+                      'Vencimiento', detalle['fecha_vencimiento']?.toString()),
+                ],
+                if (accion.detallesCocada case final detalle?)
+                  _dato('Cocada', detalle['medida']?.toString()),
+                if (accion.detallesTorque case final detalle?)
+                  _dato('Torque', detalle['medida']?.toString()),
+                if (accion.detallesTrabajosExternos case final detalle?)
+                  _dato('Trabajos realizados',
+                      detalle['descripcion_trabajos']?.toString()),
                 if (accion.checklistFlash != null)
                   _dato(
                       'Check List Flash',

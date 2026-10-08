@@ -74,6 +74,7 @@ void main() {
             accionTipo: 'Empezar a Conducir',
             vehiculoId: 42,
             nivelCombustible: 50,
+            observaciones: 'Sin novedad',
           ),
         );
     expect(container.read(jornadaNotifierProvider).value?.vehiculoId, 42);
@@ -96,6 +97,7 @@ void main() {
               accionTipo: 'Empezar a Conducir',
               vehiculoId: 42,
               nivelCombustible: 50,
+              observaciones: 'Sin novedad',
             ),
           ),
       throwsA(isA<TransportFailure>()),
