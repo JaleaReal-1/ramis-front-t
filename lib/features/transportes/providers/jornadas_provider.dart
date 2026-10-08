@@ -52,11 +52,13 @@ final miJornadaProvider = FutureProvider<JornadaTransporte?>((ref) async {
     final activas = jornadas.where(
       (j) =>
           j.conductorId == user.id &&
-          (j.estado == 'pendiente' || j.estado == 'en_curso'),
+          (j.estado == 'pendiente' || j.estado == 'en_curso') &&
+          j.vehiculoId != null,
     );
     if (activas.isEmpty) return null;
     // Fetch detail for the first active jornada to get checklists/incidencias
-    return repo.obtenerJornada(activas.first.id);
+    final jornada = await repo.obtenerJornada(activas.first.id);
+    return jornada.vehiculoId == null ? null : jornada;
   } on TransportFailure {
     return null;
   }
@@ -75,7 +77,17 @@ class JornadaNotifier extends StateNotifier<AsyncValue<JornadaTransporte?>> {
   }
 
   Future<void> registrarAccion(RegistroAccionRequest request) async {
-    await _execute(() => _repository.registrarAccion(request));
+    await _execute(() async {
+      final jornada = await _repository.registrarAccion(request);
+      if (request.accionTipo == 'Empezar a Conducir' &&
+          (request.vehiculoId == null ||
+              jornada.vehiculoId != request.vehiculoId)) {
+        throw const TransportFailure(
+          message: 'El servidor no devolvió el vehículo de la jornada.',
+        );
+      }
+      return jornada;
+    });
   }
 
   Future<void> registrarChecklistInicial(
@@ -97,7 +109,7 @@ class JornadaNotifier extends StateNotifier<AsyncValue<JornadaTransporte?>> {
       await _repository.registrarIncidencia(jornadaId, request);
       // Retain previous jornada state (incidencia doesn't change jornada estado)
       state = AsyncValue.data(previous);
-    } catch (error, stack) {
+    } catch (error) {
       state = AsyncValue.data(previous);
       rethrow;
     }
@@ -139,7 +151,8 @@ final jornadaNotifierProvider =
 );
 
 /// Jornadas cerradas/finalizadas del conductor actual (para el Historial)
-final historialConductorProvider = FutureProvider.autoDispose<List<JornadaTransporte>>((ref) async {
+final historialConductorProvider =
+    FutureProvider.autoDispose<List<JornadaTransporte>>((ref) async {
   try {
     final user = await ref.watch(currentUserForTransportProvider.future);
     if (user == null) return [];

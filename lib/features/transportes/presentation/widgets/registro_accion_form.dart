@@ -89,7 +89,6 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
     }
   }
 
-
   AccionGruaRequest? _detallesGrua;
   AccionCombustibleRequest? _detallesCombustible;
   AccionMantenimientoRequest? _detallesMantenimiento;
@@ -129,11 +128,17 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
               if (_accionSeleccionada == "Empezar a Conducir") ...[
                 _buildConducirFields(),
               ] else if (_accionSeleccionada == "Operar Grúa") ...[
-                GruaFormWidget(onChanged: (val) => setState(() => _detallesGrua = val)),
+                GruaFormWidget(
+                    onChanged: (val) => setState(() => _detallesGrua = val)),
               ] else if (_accionSeleccionada == "Abastecer Combustible") ...[
-                CombustibleFormWidget(onChanged: (val) => setState(() => _detallesCombustible = val)),
-              ] else if (_accionSeleccionada == "Mantenimiento Preventivo / Correctivo") ...[
-                MantenimientoFormWidget(onChanged: (val) => setState(() => _detallesMantenimiento = val)),
+                CombustibleFormWidget(
+                    onChanged: (val) =>
+                        setState(() => _detallesCombustible = val)),
+              ] else if (_accionSeleccionada ==
+                  "Mantenimiento Preventivo / Correctivo") ...[
+                MantenimientoFormWidget(
+                    onChanged: (val) =>
+                        setState(() => _detallesMantenimiento = val)),
               ] else if (_accionSeleccionada != null) ...[
                 Container(
                   padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -155,7 +160,6 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                   ),
                 ),
               ],
-              
               if (_accionSeleccionada != null) ...[
                 const SizedBox(height: AppTheme.spacingL),
                 // ── Observaciones ──
@@ -187,8 +191,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                             ),
                           )
                         : const Icon(Icons.send),
-                    label:
-                        Text(_isSubmitting ? 'Registrando...' : 'Registrar Acción'),
+                    label: Text(
+                        _isSubmitting ? 'Registrando...' : 'Registrar Acción'),
                   ),
                 ),
               ]
@@ -198,7 +202,6 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       ),
     );
   }
-
 
   Widget _buildConducirFields() {
     final vehiculosAsync = ref.watch(vehiculosDisponiblesProvider);
@@ -230,8 +233,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                 setState(() => _vehiculoId = val);
                 _fetchKilometraje(val);
               },
-              validator: (val) =>
-                  val == null ? 'Seleccione un vehículo' : null,
+              validator: (val) => val == null ? 'Seleccione un vehículo' : null,
             );
           },
           loading: () => const LinearProgressIndicator(),
@@ -332,12 +334,19 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
     );
   }
 
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_accionSeleccionada == "Empezar a Conducir" && _vehiculoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione un vehículo para conducir.')),
+      );
+      return;
+    }
+
     // Validate that all checklist items are true only if we are driving
-    if (_accionSeleccionada == "Empezar a Conducir" && _checklistFlash.values.any((v) => !v)) {
+    if (_accionSeleccionada == "Empezar a Conducir" &&
+        _checklistFlash.values.any((v) => !v)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debe confirmar todos los ítems del Check List Flash.'),

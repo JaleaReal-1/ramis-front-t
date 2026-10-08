@@ -90,13 +90,29 @@ class _JornadaBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final miJornadaAsync = ref.watch(miJornadaProvider);
     final jornadaState = ref.watch(jornadaNotifierProvider);
-    final JornadaTransporte? jornada =
-        jornadaState.value ?? miJornadaAsync.value;
+    final JornadaTransporte? jornada = jornadaState.value?.vehiculoId != null
+        ? jornadaState.value
+        : miJornadaAsync.value;
 
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(miJornadaProvider),
       child: miJornadaAsync.when(
         data: (_) {
+          if (jornada != null && jornada.vehiculoId == null) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                      'No se pudo identificar el vehículo de la jornada.'),
+                  TextButton(
+                    onPressed: () => ref.invalidate(miJornadaProvider),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            );
+          }
           if (jornada == null) {
             // Sin jornada activa: mostrar el formulario para registrar acción
             return const RegistroAccionForm();
@@ -140,12 +156,10 @@ class _JornadaBody extends ConsumerWidget {
             ],
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Text('Error: $e',
-              style:
-                  AppTheme.bodyMedium.copyWith(color: AppTheme.error)),
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.error)),
         ),
       ),
     );
@@ -191,17 +205,16 @@ class _HistorialTab extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () async =>
-                ref.invalidate(historialConductorProvider),
+            onRefresh: () async => ref.invalidate(historialConductorProvider),
             child: ListView.builder(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               itemCount: jornadas.length,
-              itemBuilder: (ctx, i) => _JornadaHistorialTile(jornada: jornadas[i]),
+              itemBuilder: (ctx, i) =>
+                  _JornadaHistorialTile(jornada: jornadas[i]),
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -244,10 +257,17 @@ class _JornadaHistorialTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Divider(),
-                _InfoRow(icon: Icons.timer, label: 'Horas Efectivas', value: '$horas h'),
-                _InfoRow(icon: Icons.speed, label: 'Km Recorridos', value: '$kmRecorridos km'),
+                _InfoRow(
+                    icon: Icons.timer,
+                    label: 'Horas Efectivas',
+                    value: '$horas h'),
+                _InfoRow(
+                    icon: Icons.speed,
+                    label: 'Km Recorridos',
+                    value: '$kmRecorridos km'),
                 if (jornada.ruta != null)
-                  _InfoRow(icon: Icons.route, label: 'Ruta', value: jornada.ruta!),
+                  _InfoRow(
+                      icon: Icons.route, label: 'Ruta', value: jornada.ruta!),
                 if (jornada.alertaHoras) ...[
                   const SizedBox(height: 8),
                   _AlertaBanner(
@@ -267,10 +287,10 @@ class _JornadaHistorialTile extends StatelessWidget {
                   Text('Incidencias (${jornada.incidencias.length})',
                       style: AppTheme.labelLarge),
                   ...jornada.incidencias.map((inc) => Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('• ${inc.tipo}: ${inc.descripcion}',
-                        style: AppTheme.bodySmall),
-                  )),
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text('• ${inc.tipo}: ${inc.descripcion}',
+                            style: AppTheme.bodySmall),
+                      )),
                 ],
               ],
             ),
@@ -285,7 +305,8 @@ class _JornadaHistorialTile extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow(
+      {required this.icon, required this.label, required this.value});
   final IconData icon;
   final String label;
   final String value;
@@ -298,8 +319,13 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: AppTheme.textSecondary),
           const SizedBox(width: 8),
-          Text('$label: ', style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary)),
-          Expanded(child: Text(value, style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold))),
+          Text('$label: ',
+              style:
+                  AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary)),
+          Expanded(
+              child: Text(value,
+                  style: AppTheme.bodySmall
+                      .copyWith(fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -322,7 +348,8 @@ class _AlertaBanner extends StatelessWidget {
         border: Border.all(color: color.withAlpha(100)),
       ),
       child: Text(text,
-          style: AppTheme.bodySmall.copyWith(color: color, fontWeight: FontWeight.bold)),
+          style: AppTheme.bodySmall
+              .copyWith(color: color, fontWeight: FontWeight.bold)),
     );
   }
 }

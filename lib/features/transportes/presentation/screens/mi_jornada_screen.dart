@@ -24,8 +24,9 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
     final jornadaState = ref.watch(jornadaNotifierProvider);
 
     // Use jornadaNotifier state if it has data, otherwise use miJornadaProvider
-    final JornadaTransporte? jornada =
-        jornadaState.value ?? miJornadaAsync.value;
+    final JornadaTransporte? jornada = jornadaState.value?.vehiculoId != null
+        ? jornadaState.value
+        : miJornadaAsync.value;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Jornada')),
@@ -42,8 +43,7 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.error_outline,
-                      size: 64, color: AppTheme.error),
+                  Icon(Icons.error_outline, size: 64, color: AppTheme.error),
                   const SizedBox(height: AppTheme.spacingL),
                   Text('Error: $e',
                       style:
@@ -61,6 +61,21 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
   Widget _buildBody(BuildContext context, JornadaTransporte? jornada) {
     if (jornada == null) {
       return const RegistroAccionForm();
+    }
+
+    if (jornada.vehiculoId == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No se pudo identificar el vehículo de la jornada.'),
+            TextButton(
+              onPressed: () => ref.invalidate(miJornadaProvider),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
     }
 
     return ListView(
@@ -176,8 +191,7 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
                 Expanded(
                   child: Text(
                     'Jornada cancelada por avería detectada.',
-                    style:
-                        AppTheme.titleMedium.copyWith(color: AppTheme.error),
+                    style: AppTheme.titleMedium.copyWith(color: AppTheme.error),
                   ),
                 ),
               ],
@@ -194,7 +208,8 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
                 child: ListTile(
                   leading: Icon(_getIncidenciaIcon(inc.tipo),
                       color: AppTheme.warning),
-                  title: Text(inc.tipo.toUpperCase(), style: AppTheme.labelLarge),
+                  title:
+                      Text(inc.tipo.toUpperCase(), style: AppTheme.labelLarge),
                   subtitle: Text(inc.descripcion, style: AppTheme.bodySmall),
                 ),
               )),
@@ -221,26 +236,29 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
       default:
         color = AppTheme.textDisabled;
     }
-    return AppBadge(
-        text: estado.replaceAll('_', ' '), color: color);
+    return AppBadge(text: estado.replaceAll('_', ' '), color: color);
   }
 
   void _showChecklistSheet(JornadaTransporte jornada, String tipo) async {
+    if (jornada.vehiculoId == null) {
+      ref.invalidate(miJornadaProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo identificar el vehículo.')),
+      );
+      return;
+    }
     // Load vehicle kilometraje
     if (_kilometrajeBase == null && !_loadingKm) {
-      if (jornada.vehiculoId == null) {
+      setState(() => _loadingKm = true);
+      try {
+        final repo = ref.read(transporteRepositoryProvider);
+        final vehiculo = await repo.obtenerVehiculo(jornada.vehiculoId!);
+        _kilometrajeBase =
+            (vehiculo['kilometraje_actual'] as num?)?.toDouble() ?? 0;
+      } catch (_) {
         _kilometrajeBase = 0;
-      } else {
-        setState(() => _loadingKm = true);
-        try {
-          final repo = ref.read(transporteRepositoryProvider);
-          final vehiculo = await repo.obtenerVehiculo(jornada.vehiculoId!);
-          _kilometrajeBase = (vehiculo['kilometraje_actual'] as num?)?.toDouble() ?? 0;
-        } catch (_) {
-          _kilometrajeBase = 0;
-        } finally {
-          if (mounted) setState(() => _loadingKm = false);
-        }
+      } finally {
+        if (mounted) setState(() => _loadingKm = false);
       }
     }
 
@@ -306,7 +324,7 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: selectedTipo,
+                  initialValue: selectedTipo,
                   decoration: AppTheme.inputDecoration.copyWith(
                     labelText: 'Tipo de Incidencia',
                   ),
