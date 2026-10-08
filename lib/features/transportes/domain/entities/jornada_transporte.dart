@@ -93,6 +93,60 @@ class AsignarJornadaRequest {
       };
 }
 
+class AccionGruaRequest {
+  const AccionGruaRequest({
+    this.actividad,
+    this.horometroInicial,
+    this.horometroFinal,
+  });
+
+  final String? actividad;
+  final double? horometroInicial;
+  final double? horometroFinal;
+
+  Map<String, dynamic> toJson() => {
+        if (actividad != null) 'actividad': actividad,
+        if (horometroInicial != null) 'horometro_inicial': horometroInicial,
+        if (horometroFinal != null) 'horometro_final': horometroFinal,
+      };
+}
+
+class AccionCombustibleRequest {
+  const AccionCombustibleRequest({
+    this.galones,
+    this.nivelFinal,
+  });
+
+  final double? galones;
+  final int? nivelFinal;
+
+  Map<String, dynamic> toJson() => {
+        if (galones != null) 'galones': galones,
+        if (nivelFinal != null) 'nivel_final': nivelFinal,
+      };
+}
+
+class AccionMantenimientoRequest {
+  const AccionMantenimientoRequest({
+    this.taller,
+    this.tipo,
+    this.trabajosPreventivos,
+    this.descripcionCorrectivo,
+  });
+
+  final String? taller;
+  final String? tipo;
+  final List<String>? trabajosPreventivos;
+  final String? descripcionCorrectivo;
+
+  Map<String, dynamic> toJson() => {
+        if (taller != null) 'taller': taller,
+        if (tipo != null) 'tipo': tipo,
+        if (trabajosPreventivos != null) 'trabajos_preventivos': trabajosPreventivos,
+        if (descripcionCorrectivo != null) 'descripcion_correctivo': descripcionCorrectivo,
+      };
+}
+
 class RegistroAccionRequest {
   const RegistroAccionRequest({
     required this.accionTipo,
@@ -101,6 +155,9 @@ class RegistroAccionRequest {
     this.nivelCombustible,
     this.checklistFlash,
     this.observaciones,
+    this.detallesGrua,
+    this.detallesCombustible,
+    this.detallesMantenimiento,
   });
 
   final String accionTipo;
@@ -109,6 +166,9 @@ class RegistroAccionRequest {
   final int? nivelCombustible;
   final Map<String, dynamic>? checklistFlash;
   final String? observaciones;
+  final AccionGruaRequest? detallesGrua;
+  final AccionCombustibleRequest? detallesCombustible;
+  final AccionMantenimientoRequest? detallesMantenimiento;
 
   Map<String, dynamic> toJson() => {
         'accion_tipo': accionTipo,
@@ -118,6 +178,9 @@ class RegistroAccionRequest {
         if (checklistFlash != null) 'checklist_flash': checklistFlash,
         if (observaciones != null && observaciones!.trim().isNotEmpty)
           'observaciones': observaciones,
+        if (detallesGrua != null) 'detalles_grua': detallesGrua!.toJson(),
+        if (detallesCombustible != null) 'detalles_combustible': detallesCombustible!.toJson(),
+        if (detallesMantenimiento != null) 'detalles_mantenimiento': detallesMantenimiento!.toJson(),
       };
 }
 

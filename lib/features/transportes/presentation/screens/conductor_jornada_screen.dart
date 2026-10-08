@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
+import 'package:sistema_ocs/features/transportes/presentation/widgets/registro_accion_form.dart';
 import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dart';
 
 /// Pantalla contenedora del rol Conductor con BottomNavigationBar.
@@ -97,28 +98,8 @@ class _JornadaBody extends ConsumerWidget {
       child: miJornadaAsync.when(
         data: (_) {
           if (jornada == null) {
-            // Sin jornada activa: mostrar mensaje guía
-            return ListView(
-              padding: const EdgeInsets.all(AppTheme.spacingXL),
-              children: [
-                const SizedBox(height: 60),
-                Icon(Icons.directions_bus_outlined,
-                    size: 80, color: AppTheme.textDisabled),
-                const SizedBox(height: AppTheme.spacingL),
-                Text(
-                  'Sin jornada activa',
-                  style: AppTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                Text(
-                  'Usa el botón + para registrar tu próxima acción de conducción.',
-                  style: AppTheme.bodyMedium
-                      .copyWith(color: AppTheme.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            );
+            // Sin jornada activa: mostrar el formulario para registrar acción
+            return const RegistroAccionForm();
           }
           // Jornada activa: muestra info básica
           return ListView(
