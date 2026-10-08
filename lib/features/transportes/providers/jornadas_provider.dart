@@ -153,18 +153,20 @@ final jornadaNotifierProvider =
   (ref) => JornadaNotifier(ref.watch(transporteRepositoryProvider)),
 );
 
-/// Jornadas cerradas/finalizadas del conductor actual (para el Historial)
-final historialConductorProvider =
+/// Acciones registradas por el conductor, incluidas las que siguen en curso.
+final accionesRegistradasProvider =
     FutureProvider.autoDispose<List<JornadaTransporte>>((ref) async {
-  try {
-    final user = await ref.watch(currentUserForTransportProvider.future);
-    if (user == null) return [];
-    final repo = ref.watch(transporteRepositoryProvider);
-    final jornadas = await repo.listarJornadas();
-    return jornadas
-        .where((j) => j.conductorId == user.id && j.estado == 'finalizada')
-        .toList();
-  } on TransportFailure {
-    return [];
-  }
+  final user = await ref.watch(currentUserForTransportProvider.future);
+  if (user == null) return [];
+  final repo = ref.watch(transporteRepositoryProvider);
+  final jornadas = await repo.listarJornadas();
+  return jornadas
+      .where((j) => j.conductorId == user.id && j.accionTipo != null)
+      .toList()
+    ..sort((a, b) => b.id.compareTo(a.id));
+});
+
+final detalleAccionProvider =
+    FutureProvider.autoDispose.family<JornadaTransporte, int>((ref, id) async {
+  return ref.watch(transporteRepositoryProvider).obtenerJornada(id);
 });

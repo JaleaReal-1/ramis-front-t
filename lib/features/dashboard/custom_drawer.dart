@@ -5,7 +5,7 @@ import 'package:sistema_ocs/features/almacen/almacen_main_screen.dart';
 import 'package:sistema_ocs/features/login/auth_notifier.dart';
 import 'package:sistema_ocs/data/models/user_model.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/asignacion_jornada_screen.dart';
-import 'package:sistema_ocs/features/transportes/presentation/screens/mi_jornada_screen.dart';
+import 'package:sistema_ocs/features/transportes/presentation/screens/conductor_jornada_screen.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/admin_transportes_screen.dart';
 
 class CustomDrawer extends ConsumerWidget {
@@ -39,7 +39,7 @@ class CustomDrawer extends ConsumerWidget {
                 accountEmail: Text(
                   '$userEmail\nRol: $userRole',
                   style: AppTheme.bodySmall.copyWith(
-                    color: AppTheme.textOnPrimary.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
                   ),
                 ),
                 currentAccountPicture: const CircleAvatar(
@@ -104,7 +104,7 @@ class CustomDrawer extends ConsumerWidget {
 
   Widget _buildTransportesTile(BuildContext context, String role) {
     final String currentRole = role.toLowerCase();
-    
+
     if (currentRole.contains('admin')) {
       // Para admin, mostramos un ExpansionTile con submódulos
       return ExpansionTile(
@@ -118,7 +118,8 @@ class CustomDrawer extends ConsumerWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AsignacionJornadaScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const AsignacionJornadaScreen()),
               );
             },
           ),
@@ -129,7 +130,8 @@ class CustomDrawer extends ConsumerWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AdminTransportesScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const AdminTransportesScreen()),
               );
             },
           ),
@@ -140,12 +142,13 @@ class CustomDrawer extends ConsumerWidget {
       return ListTile(
         leading: const Icon(Icons.local_shipping, color: AppTheme.primary),
         title: Text('Transportes', style: AppTheme.bodyMedium),
-        subtitle: Text('Mi jornada', style: AppTheme.bodySmall),
+        subtitle: Text('Acciones registradas y nueva acción',
+            style: AppTheme.bodySmall),
         onTap: () {
           Navigator.pop(context);
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const MiJornadaScreen()),
+            MaterialPageRoute(builder: (_) => const ConductorJornadaScreen()),
           );
         },
       );

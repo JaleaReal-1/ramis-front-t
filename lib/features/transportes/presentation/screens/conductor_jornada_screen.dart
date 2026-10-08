@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
+import 'package:sistema_ocs/features/transportes/presentation/screens/mi_jornada_screen.dart';
 import 'package:sistema_ocs/features/transportes/presentation/widgets/registro_accion_form.dart';
 import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dart';
 
-/// Pantalla contenedora del rol Conductor con BottomNavigationBar.
 class ConductorJornadaScreen extends ConsumerStatefulWidget {
   const ConductorJornadaScreen({super.key});
 
@@ -17,30 +17,48 @@ class ConductorJornadaScreen extends ConsumerStatefulWidget {
 class _ConductorJornadaScreenState
     extends ConsumerState<ConductorJornadaScreen> {
   int _selectedIndex = 0;
+  int _formVersion = 0;
+
+  void _actionRegistered() {
+    setState(() {
+      _formVersion++;
+      _selectedIndex = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title:
+            Text(_selectedIndex == 0 ? 'Acciones registradas' : 'Nueva acción'),
+      ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          _JornadaActivaTab(),
-          _HistorialTab(),
+        children: [
+          _AccionesRegistradasTab(
+            onNewAction: () => setState(() => _selectedIndex = 1),
+          ),
+          RegistroAccionForm(
+            key: ValueKey(_formVersion),
+            onRegistered: _actionRegistered,
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        onDestinationSelected: (index) =>
+            setState(() => _selectedIndex = index),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.directions_car_outlined),
-            selectedIcon: Icon(Icons.directions_car),
-            label: 'Jornada Activa',
-          ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
-            label: 'Historial',
+            label: 'Registradas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            selectedIcon: Icon(Icons.add_circle),
+            label: 'Nueva acción',
           ),
         ],
       ),
@@ -48,308 +66,275 @@ class _ConductorJornadaScreenState
   }
 }
 
-// ── Tab 1: Jornada Activa ────────────────────────────────────────────────────
+class _AccionesRegistradasTab extends ConsumerWidget {
+  const _AccionesRegistradasTab({required this.onNewAction});
 
-class _JornadaActivaTab extends ConsumerWidget {
-  const _JornadaActivaTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Reutiliza el MiJornadaScreen que ya existe y contiene el formulario dinámico
-    return const _MiJornadaWrapper();
-  }
-}
-
-class _MiJornadaWrapper extends ConsumerWidget {
-  const _MiJornadaWrapper();
+  final VoidCallback onNewAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Import inline para evitar import circular
-    // La pantalla MiJornadaScreen ya maneja todo el flujo
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Jornada'),
-        automaticallyImplyLeading: false,
-      ),
-      body: Builder(
-        builder: (ctx) {
-          // Delegamos directamente al contenido de MiJornadaScreen
-          // embebiendo su lógica de body aquí
-          return const _JornadaBody();
-        },
-      ),
-    );
-  }
-}
+    final accionesAsync = ref.watch(accionesRegistradasProvider);
+    final jornadaAsync = ref.watch(miJornadaProvider);
 
-class _JornadaBody extends ConsumerWidget {
-  const _JornadaBody();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final miJornadaAsync = ref.watch(miJornadaProvider);
-    final jornadaState = ref.watch(jornadaNotifierProvider);
-    final JornadaTransporte? jornada = jornadaState.value?.vehiculoId != null
-        ? jornadaState.value
-        : miJornadaAsync.value;
-
-    return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(miJornadaProvider),
-      child: miJornadaAsync.when(
-        data: (_) {
-          if (jornada != null && jornada.vehiculoId == null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                      'No se pudo identificar el vehículo de la jornada.'),
-                  TextButton(
-                    onPressed: () => ref.invalidate(miJornadaProvider),
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            );
-          }
-          if (jornada == null) {
-            // Sin jornada activa: mostrar el formulario para registrar acción
-            return const RegistroAccionForm();
-          }
-          // Jornada activa: muestra info básica
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingL),
+    return accionesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingL),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Jornada #${jornada.id}',
-                            style: AppTheme.titleLarge),
-                        _estadoBadge(jornada.estado),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    if (jornada.accionTipo != null)
-                      Text(jornada.accionTipo!,
-                          style: AppTheme.bodyMedium
-                              .copyWith(color: AppTheme.textSecondary)),
-                    if (jornada.ruta != null) ...[
-                      const SizedBox(height: AppTheme.spacingS),
-                      Row(
-                        children: [
-                          const Icon(Icons.route, size: 16),
-                          const SizedBox(width: 4),
-                          Expanded(
-                              child: Text(jornada.ruta!,
-                                  style: AppTheme.bodySmall)),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
+              Text('No se pudieron cargar las acciones: $error',
+                  textAlign: TextAlign.center),
+              const SizedBox(height: AppTheme.spacingM),
+              TextButton(
+                onPressed: () => ref.invalidate(accionesRegistradasProvider),
+                child: const Text('Reintentar'),
               ),
             ],
-          );
+          ),
+        ),
+      ),
+      data: (acciones) => RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(miJornadaProvider);
+          final refreshed = ref.refresh(accionesRegistradasProvider.future);
+          await refreshed;
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Text('Error: $e',
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.error)),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppTheme.spacingL),
+          children: [
+            Text('Lo que registraste', style: AppTheme.titleLarge),
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              'Consulta tus acciones y abre cada una para ver sus datos.',
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            if (jornadaAsync.value != null)
+              _JornadaActivaCard(jornada: jornadaAsync.value!),
+            if (acciones.isEmpty)
+              AppCard(
+                child: Column(
+                  children: [
+                    const Icon(Icons.assignment_outlined,
+                        size: 48, color: AppTheme.textDisabled),
+                    const SizedBox(height: AppTheme.spacingM),
+                    Text('Aún no tienes acciones registradas.',
+                        style: AppTheme.bodyMedium),
+                    const SizedBox(height: AppTheme.spacingM),
+                    OutlinedButton.icon(
+                      onPressed: onNewAction,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Registrar nueva acción'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...acciones.map((accion) => _AccionTile(
+                    key: ValueKey(accion.id),
+                    accion: accion,
+                  )),
+          ],
         ),
       ),
     );
   }
-
-  Widget _estadoBadge(String estado) {
-    final color = switch (estado) {
-      'en_curso' => AppTheme.primary,
-      'finalizada' => AppTheme.secondary,
-      'cancelada_por_averia' => AppTheme.error,
-      _ => AppTheme.textDisabled,
-    };
-    return AppBadge(text: estado.replaceAll('_', ' '), color: color);
-  }
 }
 
-// ── Tab 2: Historial ─────────────────────────────────────────────────────────
+class _JornadaActivaCard extends ConsumerWidget {
+  const _JornadaActivaCard({required this.jornada});
 
-class _HistorialTab extends ConsumerWidget {
-  const _HistorialTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final historialAsync = ref.watch(historialConductorProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Historial'),
-        automaticallyImplyLeading: false,
-      ),
-      body: historialAsync.when(
-        data: (jornadas) {
-          if (jornadas.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No tienes jornadas finalizadas aún.'),
-                ],
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(historialConductorProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              itemCount: jornadas.length,
-              itemBuilder: (ctx, i) =>
-                  _JornadaHistorialTile(jornada: jornadas[i]),
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-      ),
-    );
-  }
-}
-
-class _JornadaHistorialTile extends StatelessWidget {
-  const _JornadaHistorialTile({required this.jornada});
   final JornadaTransporte jornada;
 
   @override
-  Widget build(BuildContext context) {
-    final kmRecorridos = (jornada.kmFinal != null && jornada.kmInicial != null)
-        ? (jornada.kmFinal! - jornada.kmInicial!).toStringAsFixed(1)
-        : '--';
-    final horas = jornada.horasEfectivas?.toStringAsFixed(1) ?? '--';
-    final tieneAlertas = (jornada.alertaHoras || jornada.alertaKm);
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
+      child: AppCard(
+        backgroundColor: AppTheme.primaryLight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Jornada por atender', style: AppTheme.titleMedium),
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              jornada.accionTipo ?? 'Jornada asignada',
+              style: AppTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MiJornadaScreen(),
+                  ),
+                );
+                ref.invalidate(miJornadaProvider);
+                ref.invalidate(accionesRegistradasProvider);
+              },
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('Continuar jornada'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
+class _AccionTile extends ConsumerStatefulWidget {
+  const _AccionTile({super.key, required this.accion});
+
+  final JornadaTransporte accion;
+
+  @override
+  ConsumerState<_AccionTile> createState() => _AccionTileState();
+}
+
+class _AccionTileState extends ConsumerState<_AccionTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accion = widget.accion;
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       child: ExpansionTile(
-        leading: Icon(
-          tieneAlertas ? Icons.warning_amber : Icons.check_circle_outline,
-          color: tieneAlertas ? AppTheme.warning : AppTheme.secondary,
-        ),
-        title: Text(
-          'Jornada #${jornada.id} - ${jornada.accionTipo ?? 'Conducción'}',
-          style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-        ),
+        onExpansionChanged: (expanded) => setState(() => _expanded = expanded),
+        leading: Icon(_iconoAccion(accion.accionTipo),
+            color: accion.estado == 'en_curso'
+                ? AppTheme.primary
+                : AppTheme.secondary),
+        title: Text(accion.accionTipo ?? 'Acción #${accion.id}',
+            maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          jornada.fechaFin != null
-              ? _formatDate(jornada.fechaFin!)
-              : 'Sin fecha de cierre',
+          '${_fecha(accion.fechaInicio)} · ${_estado(accion.estado)}',
           style: AppTheme.bodySmall,
         ),
         children: [
-          Padding(
+          if (_expanded) _DetalleAccion(id: accion.id),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetalleAccion extends ConsumerWidget {
+  const _DetalleAccion({required this.id});
+
+  final int id;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(detalleAccionProvider(id)).when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(AppTheme.spacingL),
+            child: CircularProgressIndicator(),
+          ),
+          error: (error, _) => Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingL),
+            child: TextButton(
+              onPressed: () => ref.invalidate(detalleAccionProvider(id)),
+              child: const Text('No se pudo cargar el detalle. Reintentar'),
+            ),
+          ),
+          data: (accion) => Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Divider(),
-                _InfoRow(
-                    icon: Icons.timer,
-                    label: 'Horas Efectivas',
-                    value: '$horas h'),
-                _InfoRow(
-                    icon: Icons.speed,
-                    label: 'Km Recorridos',
-                    value: '$kmRecorridos km'),
-                if (jornada.ruta != null)
-                  _InfoRow(
-                      icon: Icons.route, label: 'Ruta', value: jornada.ruta!),
-                if (jornada.alertaHoras) ...[
-                  const SizedBox(height: 8),
-                  _AlertaBanner(
-                    text: '⚠ Alerta: Jornada superó 10 horas efectivas',
-                    color: AppTheme.error,
-                  ),
+                _dato('Vehículo', accion.vehiculoId?.toString()),
+                _dato('Kilometraje inicial',
+                    accion.kmInicial == null ? null : '${accion.kmInicial} km'),
+                _dato(
+                    'Combustible inicial',
+                    accion.nivelCombustible == null
+                        ? null
+                        : '${accion.nivelCombustible}%'),
+                _dato('Ruta', accion.ruta),
+                _dato('Observaciones', accion.observaciones),
+                if (accion.detallesGrua case final detalle?) ...[
+                  _dato('Actividad', detalle['actividad']?.toString()),
+                  _dato('Horómetro inicial',
+                      detalle['horometro_inicial']?.toString()),
+                  _dato('Horómetro final',
+                      detalle['horometro_final']?.toString()),
                 ],
-                if (jornada.alertaKm) ...[
-                  const SizedBox(height: 4),
-                  _AlertaBanner(
-                    text: '⚠ Alerta: Kilometraje recorrido excede 200 km',
-                    color: Colors.orange,
-                  ),
+                if (accion.detallesCombustible case final detalle?) ...[
+                  _dato('Galones abastecidos', detalle['galones']?.toString()),
+                  _dato(
+                      'Combustible final',
+                      detalle['nivel_final'] == null
+                          ? null
+                          : "${detalle['nivel_final']}%"),
                 ],
-                if (jornada.incidencias.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text('Incidencias (${jornada.incidencias.length})',
-                      style: AppTheme.labelLarge),
-                  ...jornada.incidencias.map((inc) => Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text('• ${inc.tipo}: ${inc.descripcion}',
-                            style: AppTheme.bodySmall),
-                      )),
+                if (accion.detallesMantenimiento case final detalle?) ...[
+                  _dato('Taller', detalle['taller']?.toString()),
+                  _dato('Tipo', detalle['tipo']?.toString()),
+                  _dato('Trabajos',
+                      (detalle['trabajos_preventivos'] as List?)?.join(', ')),
+                  _dato('Descripción',
+                      detalle['descripcion_correctivo']?.toString()),
                 ],
-              ],
+                if (accion.checklistFlash != null)
+                  _dato(
+                      'Check List Flash',
+                      accion.checklistFlash!.entries
+                          .where((item) => item.value == true)
+                          .map((item) => item.key)
+                          .join(', ')),
+                if (accion.incidencias.isNotEmpty)
+                  _dato(
+                      'Incidencias',
+                      accion.incidencias
+                          .map((item) => '${item.tipo}: ${item.descripcion}')
+                          .join('\n')),
+              ].whereType<Widget>().toList(),
             ),
           ),
-        ],
-      ),
-    );
+        );
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(
-      {required this.icon, required this.label, required this.value});
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget? _dato(String label, String? value) {
+    if (value == null || value.trim().isEmpty) return null;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+      padding: const EdgeInsets.only(top: AppTheme.spacingS),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppTheme.textSecondary),
-          const SizedBox(width: 8),
-          Text('$label: ',
-              style:
-                  AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary)),
-          Expanded(
-              child: Text(value,
-                  style: AppTheme.bodySmall
-                      .copyWith(fontWeight: FontWeight.bold))),
+          Text(label, style: AppTheme.bodySmall),
+          Text(value, style: AppTheme.bodyMedium),
         ],
       ),
     );
   }
 }
 
-class _AlertaBanner extends StatelessWidget {
-  const _AlertaBanner({required this.text, required this.color});
-  final String text;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(100)),
-      ),
-      child: Text(text,
-          style: AppTheme.bodySmall
-              .copyWith(color: color, fontWeight: FontWeight.bold)),
-    );
-  }
+String _fecha(DateTime? fecha) {
+  if (fecha == null) return 'Sin fecha';
+  return '${fecha.day.toString().padLeft(2, '0')}/'
+      '${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
 }
+
+String _estado(String estado) => switch (estado) {
+      'en_curso' => 'En curso',
+      'finalizada' => 'Finalizada',
+      'cancelada_por_averia' => 'Cancelada por avería',
+      _ => estado.replaceAll('_', ' '),
+    };
+
+IconData _iconoAccion(String? accion) => switch (accion) {
+      'Empezar a Conducir' => Icons.directions_car_outlined,
+      'Operar Grúa' => Icons.construction_outlined,
+      'Abastecer Combustible' => Icons.local_gas_station_outlined,
+      'Mantenimiento Preventivo / Correctivo' => Icons.build_outlined,
+      'Reporte de Incidencias u Observaciones' => Icons.report_outlined,
+      _ => Icons.assignment_outlined,
+    };

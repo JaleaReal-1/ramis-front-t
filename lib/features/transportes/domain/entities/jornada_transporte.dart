@@ -18,6 +18,9 @@ class JornadaTransporte {
     this.horasEfectivas,
     this.alertaHoras = false,
     this.alertaKm = false,
+    this.detallesGrua,
+    this.detallesCombustible,
+    this.detallesMantenimiento,
   });
 
   final int id;
@@ -38,6 +41,9 @@ class JornadaTransporte {
   final double? horasEfectivas;
   final bool alertaHoras;
   final bool alertaKm;
+  final Map<String, dynamic>? detallesGrua;
+  final Map<String, dynamic>? detallesCombustible;
+  final Map<String, dynamic>? detallesMantenimiento;
 }
 
 class Checklist {

@@ -10,7 +10,9 @@ import 'package:sistema_ocs/features/transportes/presentation/widgets/dynamic_ac
 import 'package:sistema_ocs/features/transportes/presentation/widgets/dynamic_actions/mantenimiento_form_widget.dart';
 
 class RegistroAccionForm extends ConsumerStatefulWidget {
-  const RegistroAccionForm({super.key});
+  const RegistroAccionForm({super.key, this.onRegistered});
+
+  final VoidCallback? onRegistered;
 
   @override
   ConsumerState<RegistroAccionForm> createState() => _RegistroAccionFormState();
@@ -469,7 +471,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       );
       // Trigger a refresh of the miJornadaProvider
       ref.invalidate(miJornadaProvider);
-      ref.invalidate(historialConductorProvider);
+      ref.invalidate(accionesRegistradasProvider);
+      widget.onRegistered?.call();
     } on TransportFailure catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

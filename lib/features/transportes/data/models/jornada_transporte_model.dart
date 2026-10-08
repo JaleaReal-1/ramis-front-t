@@ -20,12 +20,16 @@ class JornadaTransporteModel extends JornadaTransporte {
     super.horasEfectivas,
     super.alertaHoras,
     super.alertaKm,
+    super.detallesGrua,
+    super.detallesCombustible,
+    super.detallesMantenimiento,
   });
 
   factory JornadaTransporteModel.fromJson(Map<String, dynamic> json) {
     return JornadaTransporteModel(
       id: _int(json, 'id'),
-      vehiculoId: json['vehiculo_id'] != null ? _int(json, 'vehiculo_id') : null,
+      vehiculoId:
+          json['vehiculo_id'] != null ? _int(json, 'vehiculo_id') : null,
       conductorId: _int(json, 'conductor_id'),
       estado: _str(json, 'estado'),
       fechaInicio: _date(json['fecha_inicio']),
@@ -34,7 +38,9 @@ class JornadaTransporteModel extends JornadaTransporte {
       incidencias: _list(json['incidencias'], IncidenciaRutaModel.fromJson),
       accionTipo: json['accion_tipo'] as String?,
       ruta: json['ruta'] as String?,
-      nivelCombustible: json['nivel_combustible'] != null ? _int(json, 'nivel_combustible') : null,
+      nivelCombustible: json['nivel_combustible'] != null
+          ? _int(json, 'nivel_combustible')
+          : null,
       checklistFlash: json['checklist_flash'] as Map<String, dynamic>?,
       observaciones: json['observaciones'] as String?,
       kmInicial: (json['km_inicial'] as num?)?.toDouble(),
@@ -42,6 +48,11 @@ class JornadaTransporteModel extends JornadaTransporte {
       horasEfectivas: (json['horas_efectivas'] as num?)?.toDouble(),
       alertaHoras: json['alerta_horas'] as bool? ?? false,
       alertaKm: json['alerta_km'] as bool? ?? false,
+      detallesGrua: json['detalles_grua'] as Map<String, dynamic>?,
+      detallesCombustible:
+          json['detalles_combustible'] as Map<String, dynamic>?,
+      detallesMantenimiento:
+          json['detalles_mantenimiento'] as Map<String, dynamic>?,
     );
   }
 }
