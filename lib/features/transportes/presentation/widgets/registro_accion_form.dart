@@ -76,16 +76,21 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   }
 
   Future<void> _fetchKilometraje(int? vehiculoId) async {
+    _kmController.clear();
     if (vehiculoId == null) return;
     setState(() => _loadingKm = true);
     try {
       final repo = ref.read(transporteRepositoryProvider);
       final km = await repo.obtenerKilometrajeVehiculo(vehiculoId);
-      _kmController.text = km.toStringAsFixed(1);
+      if (mounted && _vehiculoId == vehiculoId) {
+        _kmController.text = km.toStringAsFixed(1);
+      }
     } catch (_) {
-      // no-op, el campo queda vacío
+      // El campo queda vacío y su validador impide enviar datos incompletos.
     } finally {
-      if (mounted) setState(() => _loadingKm = false);
+      if (mounted && _vehiculoId == vehiculoId) {
+        setState(() => _loadingKm = false);
+      }
     }
   }
 
@@ -105,6 +110,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
             children: [
               Text('Registro de Actividad', style: AppTheme.titleLarge),
               const SizedBox(height: AppTheme.spacingL),
+              _buildGlobalFields(),
+              const SizedBox(height: AppTheme.spacingL),
               DropdownButtonFormField<String>(
                 isExpanded: true,
                 decoration: AppTheme.inputDecoration.copyWith(
@@ -123,6 +130,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                   _detallesCombustible = null;
                   _detallesMantenimiento = null;
                 }),
+                validator: (val) =>
+                    val == null ? 'Seleccione una acción' : null,
               ),
               const SizedBox(height: AppTheme.spacingXL),
               if (_accionSeleccionada == "Empezar a Conducir") ...[
@@ -136,9 +145,12 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                         setState(() => _detallesCombustible = val)),
               ] else if (_accionSeleccionada ==
                   "Mantenimiento Preventivo / Correctivo") ...[
-                MantenimientoFormWidget(
-                    onChanged: (val) =>
-                        setState(() => _detallesMantenimiento = val)),
+                Material(
+                  type: MaterialType.transparency,
+                  child: MantenimientoFormWidget(
+                      onChanged: (val) =>
+                          setState(() => _detallesMantenimiento = val)),
+                ),
               ] else if (_accionSeleccionada != null) ...[
                 Container(
                   padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -160,42 +172,37 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                   ),
                 ),
               ],
-              if (_accionSeleccionada != null) ...[
-                const SizedBox(height: AppTheme.spacingL),
-                // ── Observaciones ──
-                TextFormField(
-                  controller: _observacionesController,
-                  decoration: AppTheme.inputDecoration.copyWith(
-                    labelText: 'Observaciones (Opcional)',
-                    alignLabelWithHint: true,
-                    helperText:
-                        'Informar si hay alguna condición para revisar y/o reparar, reponer, implementar u oportunidades de mejora',
-                    helperMaxLines: 5,
-                  ),
-                  maxLines: 3,
+              const SizedBox(height: AppTheme.spacingL),
+              TextFormField(
+                controller: _observacionesController,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Observaciones (Opcional)',
+                  alignLabelWithHint: true,
+                  helperText:
+                      'Informar si hay alguna condición para revisar y/o reparar, reponer, implementar u oportunidades de mejora',
+                  helperMaxLines: 5,
                 ),
-                const SizedBox(height: AppTheme.spacingXL),
-
-                // ── Submit ──
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submit,
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppTheme.textOnPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.send),
-                    label: Text(
-                        _isSubmitting ? 'Registrando...' : 'Registrar Acción'),
-                  ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: AppTheme.spacingXL),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmitting ? null : _submit,
+                  icon: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.textOnPrimary,
+                          ),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(
+                      _isSubmitting ? 'Registrando...' : 'Registrar Acción'),
                 ),
-              ]
+              ),
             ],
           ),
         ),
@@ -203,7 +210,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
     );
   }
 
-  Widget _buildConducirFields() {
+  Widget _buildGlobalFields() {
     final vehiculosAsync = ref.watch(vehiculosDisponiblesProvider);
 
     return Column(
@@ -217,7 +224,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
             return DropdownButtonFormField<int>(
               isExpanded: true,
               decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Vehículo a Conducir',
+                labelText: 'Vehículo',
                 prefixIcon: const Icon(Icons.local_shipping_outlined),
               ),
               items: disponibles
@@ -242,11 +249,12 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
         ),
         const SizedBox(height: AppTheme.spacingL),
 
-        // ── Kilometraje Actual ──
+        // ── Kilometraje Inicial ──
         TextFormField(
           controller: _kmController,
+          readOnly: true,
           decoration: AppTheme.inputDecoration.copyWith(
-            labelText: 'Kilometraje Actual',
+            labelText: 'Kilometraje Inicial',
             prefixIcon: const Icon(Icons.speed),
             helperText: 'Km registrado del vehículo al inicio',
             suffixIcon: _loadingKm
@@ -261,9 +269,26 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                 : null,
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: (value) => value == null || value.isEmpty
+              ? 'Espere a que se cargue el kilometraje'
+              : null,
         ),
         const SizedBox(height: AppTheme.spacingL),
 
+        // ── Combustible Inicial ──
+        FuelGaugeSelector(
+          value: _nivelCombustible.toInt(),
+          onChanged: (val) =>
+              setState(() => _nivelCombustible = val.toDouble()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConducirFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         // ── Ruta ──
         DropdownButtonFormField<String>(
           isExpanded: true,
@@ -293,14 +318,6 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                 : null,
           ),
         ],
-        const SizedBox(height: AppTheme.spacingL),
-
-        // ── Nivel de Combustible ──
-        FuelGaugeSelector(
-          value: _nivelCombustible.toInt(),
-          onChanged: (val) =>
-              setState(() => _nivelCombustible = val.toDouble()),
-        ),
         const SizedBox(height: AppTheme.spacingL),
 
         // ── Check List Flash ──
@@ -337,9 +354,9 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_accionSeleccionada == "Empezar a Conducir" && _vehiculoId == null) {
+    if (_vehiculoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seleccione un vehículo para conducir.')),
+        const SnackBar(content: Text('Seleccione un vehículo.')),
       );
       return;
     }
@@ -362,11 +379,15 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
             RegistroAccionRequest(
               accionTipo: _accionSeleccionada!,
               vehiculoId: _vehiculoId,
-              ruta: _rutaSeleccionada == 'Otras'
-                  ? _otraRutaController.text.trim()
-                  : _rutaSeleccionada,
+              ruta: _accionSeleccionada == 'Empezar a Conducir'
+                  ? (_rutaSeleccionada == 'Otras'
+                      ? _otraRutaController.text.trim()
+                      : _rutaSeleccionada)
+                  : null,
               nivelCombustible: _nivelCombustible.toInt(),
-              checklistFlash: _checklistFlash,
+              checklistFlash: _accionSeleccionada == 'Empezar a Conducir'
+                  ? _checklistFlash
+                  : null,
               observaciones: _observacionesController.text,
               detallesGrua: _detallesGrua,
               detallesCombustible: _detallesCombustible,
