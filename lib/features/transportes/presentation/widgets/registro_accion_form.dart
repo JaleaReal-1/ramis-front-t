@@ -18,6 +18,7 @@ class RegistroAccionForm extends ConsumerStatefulWidget {
 
 class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   final _formKey = GlobalKey<FormState>();
+  final _fechaRegistro = DateTime.now();
 
   static const _acciones = [
     "Empezar a Conducir",
@@ -60,7 +61,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   String? _accionSeleccionada;
   int? _vehiculoId;
   String? _rutaSeleccionada;
-  double _nivelCombustible = 100;
+  int? _nivelCombustible;
   final _observacionesController = TextEditingController();
   final _otraRutaController = TextEditingController();
   final _kmController = TextEditingController();
@@ -151,7 +152,9 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                       onChanged: (val) =>
                           setState(() => _detallesMantenimiento = val)),
                 ),
-              ] else if (_accionSeleccionada != null) ...[
+              ] else if (_accionSeleccionada != null &&
+                  _accionSeleccionada !=
+                      "Reporte de Incidencias u Observaciones") ...[
                 Container(
                   padding: const EdgeInsets.all(AppTheme.spacingL),
                   decoration: BoxDecoration(
@@ -212,10 +215,41 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
 
   Widget _buildGlobalFields() {
     final vehiculosAsync = ref.watch(vehiculosDisponiblesProvider);
+    final usuarioAsync = ref.watch(currentUserForTransportProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildReadonlyField(
+          'Fecha del Registro',
+          Icons.calendar_today_outlined,
+          '${_fechaRegistro.day.toString().padLeft(2, '0')}/'
+              '${_fechaRegistro.month.toString().padLeft(2, '0')}/'
+              '${_fechaRegistro.year} '
+              '${_fechaRegistro.hour.toString().padLeft(2, '0')}:'
+              '${_fechaRegistro.minute.toString().padLeft(2, '0')}',
+        ),
+        const SizedBox(height: AppTheme.spacingL),
+        usuarioAsync.when(
+          data: (usuario) => _buildReadonlyField(
+            'Nombre del Registrador',
+            Icons.person_outline,
+            usuario == null
+                ? 'Usuario no disponible'
+                : '${usuario.nombre} ${usuario.apellidos}'.trim(),
+          ),
+          loading: () => _buildReadonlyField(
+            'Nombre del Registrador',
+            Icons.person_outline,
+            'Cargando...',
+          ),
+          error: (_, __) => _buildReadonlyField(
+            'Nombre del Registrador',
+            Icons.person_outline,
+            'Usuario no disponible',
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingL),
         // ── Vehículo ──
         vehiculosAsync.when(
           data: (vehiculos) {
@@ -276,12 +310,37 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
         const SizedBox(height: AppTheme.spacingL),
 
         // ── Combustible Inicial ──
-        FuelGaugeSelector(
-          value: _nivelCombustible.toInt(),
-          onChanged: (val) =>
-              setState(() => _nivelCombustible = val.toDouble()),
+        FormField<int>(
+          validator: (value) => value == null
+              ? 'Seleccione el nivel de combustible inicial'
+              : null,
+          builder: (field) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FuelGaugeSelector(
+                value: _nivelCombustible,
+                onChanged: (value) {
+                  field.didChange(value);
+                  setState(() => _nivelCombustible = value);
+                },
+              ),
+              if (field.hasError)
+                Text(field.errorText!,
+                    style: AppTheme.bodySmall.copyWith(color: AppTheme.error)),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildReadonlyField(String label, IconData icon, String value) {
+    return InputDecorator(
+      decoration: AppTheme.inputDecoration.copyWith(
+        labelText: label,
+        prefixIcon: Icon(icon),
+      ),
+      child: Text(value, style: AppTheme.bodyMedium),
     );
   }
 
@@ -354,6 +413,13 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (ref.read(currentUserForTransportProvider).value == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo identificar al registrador.')),
+      );
+      return;
+    }
+
     if (_vehiculoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Seleccione un vehículo.')),
@@ -378,13 +444,13 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       await ref.read(jornadaNotifierProvider.notifier).registrarAccion(
             RegistroAccionRequest(
               accionTipo: _accionSeleccionada!,
-              vehiculoId: _vehiculoId,
+              vehiculoId: _vehiculoId!,
               ruta: _accionSeleccionada == 'Empezar a Conducir'
                   ? (_rutaSeleccionada == 'Otras'
                       ? _otraRutaController.text.trim()
                       : _rutaSeleccionada)
                   : null,
-              nivelCombustible: _nivelCombustible.toInt(),
+              nivelCombustible: _nivelCombustible!,
               checklistFlash: _accionSeleccionada == 'Empezar a Conducir'
                   ? _checklistFlash
                   : null,
@@ -403,6 +469,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       );
       // Trigger a refresh of the miJornadaProvider
       ref.invalidate(miJornadaProvider);
+      ref.invalidate(historialConductorProvider);
     } on TransportFailure catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

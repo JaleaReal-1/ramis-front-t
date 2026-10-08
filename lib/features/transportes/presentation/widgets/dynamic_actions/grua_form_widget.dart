@@ -16,11 +16,21 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
   final _horometroInicialController = TextEditingController();
   final _horometroFinalController = TextEditingController();
 
+  @override
+  void dispose() {
+    _actividadController.dispose();
+    _horometroInicialController.dispose();
+    _horometroFinalController.dispose();
+    super.dispose();
+  }
+
+  double? _numero(String value) => double.tryParse(value.replaceAll(',', '.'));
+
   void _emit() {
     widget.onChanged(AccionGruaRequest(
-      actividad: _actividadController.text,
-      horometroInicial: double.tryParse(_horometroInicialController.text),
-      horometroFinal: double.tryParse(_horometroFinalController.text),
+      actividad: _actividadController.text.trim(),
+      horometroInicial: _numero(_horometroInicialController.text),
+      horometroFinal: _numero(_horometroFinalController.text),
     ));
   }
 
@@ -34,6 +44,9 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'ACTIVIDAD A REALIZAR',
           ),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Describa la actividad'
+              : null,
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: AppTheme.spacingL),
@@ -42,7 +55,13 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'HORÓMETRO INICIAL',
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: (value) {
+            final numero = _numero(value ?? '');
+            return numero == null || numero < 0
+                ? 'Ingrese un horómetro inicial válido'
+                : null;
+          },
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: AppTheme.spacingL),
@@ -51,7 +70,17 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'HORÓMETRO FINAL',
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: (value) {
+            final numero = _numero(value ?? '');
+            if (numero == null || numero < 0) {
+              return 'Ingrese un horómetro final válido';
+            }
+            final inicial = _numero(_horometroInicialController.text);
+            return inicial != null && numero < inicial
+                ? 'El horómetro final no puede ser menor al inicial'
+                : null;
+          },
           onChanged: (_) => _emit(),
         ),
       ],

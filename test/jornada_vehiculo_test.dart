@@ -73,6 +73,7 @@ void main() {
           const RegistroAccionRequest(
             accionTipo: 'Empezar a Conducir',
             vehiculoId: 42,
+            nivelCombustible: 50,
           ),
         );
     expect(container.read(jornadaNotifierProvider).value?.vehiculoId, 42);
@@ -94,6 +95,7 @@ void main() {
             const RegistroAccionRequest(
               accionTipo: 'Empezar a Conducir',
               vehiculoId: 42,
+              nivelCombustible: 50,
             ),
           ),
       throwsA(isA<TransportFailure>()),

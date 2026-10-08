@@ -142,17 +142,19 @@ class AccionMantenimientoRequest {
   Map<String, dynamic> toJson() => {
         if (taller != null) 'taller': taller,
         if (tipo != null) 'tipo': tipo,
-        if (trabajosPreventivos != null) 'trabajos_preventivos': trabajosPreventivos,
-        if (descripcionCorrectivo != null) 'descripcion_correctivo': descripcionCorrectivo,
+        if (trabajosPreventivos != null)
+          'trabajos_preventivos': trabajosPreventivos,
+        if (descripcionCorrectivo != null)
+          'descripcion_correctivo': descripcionCorrectivo,
       };
 }
 
 class RegistroAccionRequest {
   const RegistroAccionRequest({
     required this.accionTipo,
-    this.vehiculoId,
+    required this.vehiculoId,
     this.ruta,
-    this.nivelCombustible,
+    required this.nivelCombustible,
     this.checklistFlash,
     this.observaciones,
     this.detallesGrua,
@@ -161,9 +163,9 @@ class RegistroAccionRequest {
   });
 
   final String accionTipo;
-  final int? vehiculoId;
+  final int vehiculoId;
   final String? ruta;
-  final int? nivelCombustible;
+  final int nivelCombustible;
   final Map<String, dynamic>? checklistFlash;
   final String? observaciones;
   final AccionGruaRequest? detallesGrua;
@@ -172,15 +174,17 @@ class RegistroAccionRequest {
 
   Map<String, dynamic> toJson() => {
         'accion_tipo': accionTipo,
-        if (vehiculoId != null) 'vehiculo_id': vehiculoId,
+        'vehiculo_id': vehiculoId,
         if (ruta != null) 'ruta': ruta,
-        if (nivelCombustible != null) 'nivel_combustible': nivelCombustible,
+        'nivel_combustible': nivelCombustible,
         if (checklistFlash != null) 'checklist_flash': checklistFlash,
         if (observaciones != null && observaciones!.trim().isNotEmpty)
           'observaciones': observaciones,
         if (detallesGrua != null) 'detalles_grua': detallesGrua!.toJson(),
-        if (detallesCombustible != null) 'detalles_combustible': detallesCombustible!.toJson(),
-        if (detallesMantenimiento != null) 'detalles_mantenimiento': detallesMantenimiento!.toJson(),
+        if (detallesCombustible != null)
+          'detalles_combustible': detallesCombustible!.toJson(),
+        if (detallesMantenimiento != null)
+          'detalles_mantenimiento': detallesMantenimiento!.toJson(),
       };
 }
 

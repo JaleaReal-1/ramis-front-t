@@ -53,7 +53,8 @@ final miJornadaProvider = FutureProvider<JornadaTransporte?>((ref) async {
       (j) =>
           j.conductorId == user.id &&
           (j.estado == 'pendiente' || j.estado == 'en_curso') &&
-          j.vehiculoId != null,
+          j.vehiculoId != null &&
+          (j.accionTipo == null || j.accionTipo == 'Empezar a Conducir'),
     );
     if (activas.isEmpty) return null;
     // Fetch detail for the first active jornada to get checklists/incidencias
@@ -77,11 +78,13 @@ class JornadaNotifier extends StateNotifier<AsyncValue<JornadaTransporte?>> {
   }
 
   Future<void> registrarAccion(RegistroAccionRequest request) async {
+    if (request.accionTipo != 'Empezar a Conducir') {
+      await _repository.registrarAccion(request);
+      return;
+    }
     await _execute(() async {
       final jornada = await _repository.registrarAccion(request);
-      if (request.accionTipo == 'Empezar a Conducir' &&
-          (request.vehiculoId == null ||
-              jornada.vehiculoId != request.vehiculoId)) {
+      if (jornada.vehiculoId != request.vehiculoId) {
         throw const TransportFailure(
           message: 'El servidor no devolvió el vehículo de la jornada.',
         );

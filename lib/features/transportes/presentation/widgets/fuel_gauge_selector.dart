@@ -10,7 +10,7 @@ class FuelGaugeSelector extends StatelessWidget {
     required this.onChanged,
   });
 
-  final int value;
+  final int? value;
   final void Function(int) onChanged;
 
   static const _labels = ['E', '1/4', '1/2', '3/4', 'F'];
@@ -46,12 +46,17 @@ class FuelGaugeSelector extends StatelessWidget {
                 Row(
                   children: [
                     Icon(Icons.local_gas_station,
-                        color: _colorForValue(value), size: 32),
+                        color: value == null
+                            ? AppTheme.textDisabled
+                            : _colorForValue(value!),
+                        size: 32),
                     const Spacer(),
                     Text(
-                      '$value%',
+                      value == null ? 'Seleccione' : '$value%',
                       style: AppTheme.bodySmall.copyWith(
-                        color: _colorForValue(value),
+                        color: value == null
+                            ? AppTheme.textSecondary
+                            : _colorForValue(value!),
                         fontWeight: FontWeight.bold,
                       ),
                     ),

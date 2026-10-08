@@ -14,11 +14,19 @@ class CombustibleFormWidget extends StatefulWidget {
 
 class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
   final _galonesController = TextEditingController();
-  int _nivelFinal = 100;
+  int? _nivelFinal;
+
+  @override
+  void dispose() {
+    _galonesController.dispose();
+    super.dispose();
+  }
+
+  double? _galones(String value) => double.tryParse(value.replaceAll(',', '.'));
 
   void _emit() {
     widget.onChanged(AccionCombustibleRequest(
-      galones: double.tryParse(_galonesController.text),
+      galones: _galones(_galonesController.text),
       nivelFinal: _nivelFinal,
     ));
   }
@@ -33,18 +41,37 @@ class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
           decoration: AppTheme.inputDecoration.copyWith(
             labelText: 'CANTIDAD COMBUSTIBLE ABASTECIDO EN GALONES',
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: (value) {
+            final cantidad = _galones(value ?? '');
+            return cantidad == null || cantidad <= 0
+                ? 'Ingrese una cantidad válida de galones'
+                : null;
+          },
           onChanged: (_) => _emit(),
         ),
         const SizedBox(height: AppTheme.spacingL),
         Text('NIVEL DE COMBUSTIBLE FINAL', style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingS),
-        FuelGaugeSelector(
-          value: _nivelFinal,
-          onChanged: (val) {
-            setState(() => _nivelFinal = val);
-            _emit();
-          },
+        FormField<int>(
+          validator: (value) =>
+              value == null ? 'Seleccione el nivel de combustible final' : null,
+          builder: (field) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FuelGaugeSelector(
+                value: _nivelFinal,
+                onChanged: (val) {
+                  field.didChange(val);
+                  setState(() => _nivelFinal = val);
+                  _emit();
+                },
+              ),
+              if (field.hasError)
+                Text(field.errorText!,
+                    style: AppTheme.bodySmall.copyWith(color: AppTheme.error)),
+            ],
+          ),
         ),
       ],
     );
