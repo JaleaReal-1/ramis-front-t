@@ -31,49 +31,76 @@ class FuelGaugeSelector extends StatelessWidget {
         Text('Nivel de Combustible',
             style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.border),
+        Material(
+          color: AppTheme.surface,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: AppTheme.border),
             borderRadius: BorderRadius.circular(12),
-            color: AppTheme.surface,
           ),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Gauge icon
-              Icon(
-                Icons.local_gas_station,
-                color: _colorForValue(value),
-                size: 32,
-              ),
-              const SizedBox(width: 12),
-              // Segments
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.local_gas_station,
+                        color: _colorForValue(value), size: 32),
+                    const Spacer(),
+                    Text(
+                      '$value%',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: _colorForValue(value),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: List.generate(_values.length, (i) {
                     final isSelected = _values[i] == value;
                     final segColor = _colorForValue(_values[i]);
-                    return GestureDetector(
-                      onTap: () => onChanged(_values[i]),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isSelected ? segColor : segColor.withAlpha(40),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected ? segColor : AppTheme.border,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _labels[i],
-                            style: AppTheme.bodySmall.copyWith(
-                              color: isSelected ? Colors.white : AppTheme.textSecondary,
-                              fontWeight: FontWeight.bold,
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                            right: i == _values.length - 1 ? 0 : 4),
+                        child: Semantics(
+                          button: true,
+                          label: '${_values[i]}% de combustible',
+                          selected: isSelected,
+                          child: InkWell(
+                            onTap: () => onChanged(_values[i]),
+                            borderRadius: BorderRadius.circular(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? segColor
+                                    : segColor.withAlpha(40),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color:
+                                      isSelected ? segColor : AppTheme.border,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _labels[i],
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppTheme.textSecondary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -81,21 +108,8 @@ class FuelGaugeSelector extends StatelessWidget {
                     );
                   }),
                 ),
-              ),
-              // Current value
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 40,
-                child: Text(
-                  '$value%',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: _colorForValue(value),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
