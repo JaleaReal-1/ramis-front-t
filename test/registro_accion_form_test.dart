@@ -72,22 +72,22 @@ void main() {
     await tester.ensureVisible(action);
     await tester.tap(action);
     await tester.pumpAndSettle();
+    expect(find.text('Operar Grúa'), findsNothing);
     await tester.tap(find.text('Reporte de Incidencias u Observaciones').last);
     await tester.pumpAndSettle();
     expect(find.text('Formulario en construcción para esta acción.'),
         findsNothing);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'OBSERVACIONES'),
+      find.widgetWithText(TextFormField, 'Descripción detallada'),
       'Ruido en el motor',
     );
     final submit = find.text('Registrar Acción');
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();
-    expect(repository.submitted?.accionTipo,
-        'Reporte de Incidencias u Observaciones');
-    expect(repository.submitted?.observaciones, 'Ruido en el motor');
-    expect(repository.submitted?.nivelCombustible, 50);
+    expect(repository.submitted, isNull);
+    expect(find.text('Adjunte una fotografía y espere a que termine de cargar'),
+        findsOneWidget);
 
     await tester.ensureVisible(action);
     await tester.tap(action);
@@ -95,7 +95,7 @@ void main() {
     await tester.tap(find.text('Check List y/o V°B° de vehículos').last);
     await tester.pumpAndSettle();
     expect(find.text('Check List Flash (Obligatorio)'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsNWidgets(11));
+    expect(find.byType(CheckboxListTile), findsNWidgets(22));
     for (final accionCampo in {
       'Inspección Técnica': 'FECHA DE INSPECCIÓN TÉCNICA',
       'Medición de Cocada': 'COCADA',
@@ -134,6 +134,7 @@ void main() {
                 'placa': 'TEST',
                 'marca': 'Volvo',
                 'modelo': 'FH',
+                'tipo': 'Camión Grúa',
                 'estado': 'disponible',
               }
             ]),
@@ -149,7 +150,8 @@ void main() {
     expect(find.text('Kilometraje Inicial'), findsOneWidget);
     expect(find.byType(FuelGaugeSelector), findsOneWidget);
     expect(find.text('ACCIÓN A REALIZAR'), findsOneWidget);
-    expect(find.text('OBSERVACIONES'), findsOneWidget);
+    expect(find.text('¿Presenta Observaciones o Novedades?'), findsOneWidget);
+    expect(find.text('Descripción detallada'), findsNothing);
     expect(find.text('Registrar Acción'), findsOneWidget);
 
     await tester.tap(find.byType(DropdownButtonFormField<int>));
@@ -164,7 +166,7 @@ void main() {
             matching: find.byType(TextField),
           ))
           .readOnly,
-      isTrue,
+      isFalse,
     );
     await tester.ensureVisible(find.text('1/4'));
     await tester.tap(find.text('1/4'));
@@ -176,8 +178,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Operar Grúa').last);
     await tester.pumpAndSettle();
-    expect(find.byType(FuelGaugeSelector), findsOneWidget);
-    expect(find.text('125.0'), findsOneWidget);
+    expect(find.byType(FuelGaugeSelector), findsNothing);
+    expect(find.text('125.0'), findsNothing);
 
     await tester.ensureVisible(action);
     await tester.tap(action);
@@ -204,19 +206,16 @@ void main() {
       find.widgetWithText(TextFormField, 'HORÓMETRO FINAL'),
       '11.5',
     );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'OBSERVACIONES'),
-      'Sin novedad',
-    );
     final submit = find.text('Registrar Acción');
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();
 
     expect(repository.submitted?.vehiculoId, 5);
-    expect(repository.submitted?.nivelCombustible, 25);
+    expect(repository.submitted?.nivelCombustible, isNull);
+    expect(repository.submitted?.kmInicial, isNull);
     expect(repository.submitted?.accionTipo, 'Operar Grúa');
-    expect(repository.submitted?.observaciones, 'Sin novedad');
+    expect(repository.submitted?.observaciones, 'Sin novedades');
     expect(repository.submitted?.detallesGrua?.actividad, 'Izaje');
     expect(tester.takeException(), isNull);
   });
@@ -247,7 +246,7 @@ void main() {
     await tester.tap(find.text('Empezar a Conducir').last);
     await tester.pumpAndSettle();
 
-    final routeDropdown = find.byType(DropdownButtonFormField<String>).last;
+    final routeDropdown = find.byType(DropdownButtonFormField<String>).at(1);
     await tester.ensureVisible(routeDropdown);
     await tester.tap(routeDropdown);
     await tester.pumpAndSettle();

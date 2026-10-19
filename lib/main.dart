@@ -18,6 +18,15 @@ class OCSApp extends ConsumerWidget {
     final authStatus = ref.watch(authNotifierProvider);
     final navigatorKey = ref.watch(navigatorKeyProvider);
 
+    ref.listen<AuthStatus>(authNotifierProvider, (previous, next) {
+      if (next == AuthStatus.unauthenticated && previous == AuthStatus.authenticated) {
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    });
+
     final Widget homeScreen = authStatus == AuthStatus.authenticated
         ? const DashboardScreen()
         : const LoginScreen();

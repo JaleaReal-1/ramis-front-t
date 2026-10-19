@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
+import 'package:sistema_ocs/features/login/auth_notifier.dart';
+import 'package:sistema_ocs/features/login/login_provider.dart';
+import 'package:sistema_ocs/features/login/login_screen.dart';
 import 'package:sistema_ocs/features/almacen/escanear_qr_screen.dart';
 import 'package:sistema_ocs/features/almacen/prestamo/screens/articulo_disponible.dart';
-import 'package:sistema_ocs/features/almacen/prestamo/widgets/formulario_cantidades_dialog.dart'; // Ajusta según tu tema real
- // Ajusta según tu tema real
+
 
 // Importa las pantallas que iremos creando después
 // import 'solicitar_prestamo_screen.dart';
@@ -33,6 +35,19 @@ class AlmacenDashboardScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Almacén - Préstamos de Equipos'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Cerrar Sesión',
+                onPressed: () async {
+                  await ref.read(authNotifierProvider.notifier).logout();
+                  ref.read(navigatorKeyProvider).currentState?.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                },
+              ),
+            ],
           ),
           body: SafeArea(
             child: SingleChildScrollView(

@@ -73,6 +73,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    expect(find.text('No tienes una jornada activa en este momento.'),
+        findsOneWidget);
+    await tester.tap(find.text('Historial'));
+    await tester.pumpAndSettle();
     expect(find.text('Lo que registraste'), findsOneWidget);
     expect(find.text('Operar Grúa'), findsOneWidget);
     expect(find.text('08/10/2026 · Finalizada'), findsOneWidget);
@@ -82,7 +86,9 @@ void main() {
     expect(find.text('125.0 km'), findsOneWidget);
     expect(find.text('Sin novedad'), findsOneWidget);
 
-    await tester.tap(find.text('Nueva acción'));
+    await tester.tap(find.text('Seguimiento'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Empezar a Conducir'));
     await tester.pumpAndSettle();
     expect(find.text('Registro de Actividad'), findsOneWidget);
     expect(find.text('ACCIÓN A REALIZAR'), findsOneWidget);

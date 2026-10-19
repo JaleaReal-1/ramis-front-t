@@ -1,3 +1,4 @@
+import '../widgets/vehiculo_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -55,34 +56,17 @@ class _AsignacionJornadaScreenState
                     // ── Vehículo ──
                     vehiculosAsync.when(
                       data: (vehiculos) {
-                        final disponibles = vehiculos
-                            .where((v) => v['estado'] == 'disponible')
-                            .toList();
-                        return DropdownButtonFormField<int>(
-                          decoration: AppTheme.inputDecoration.copyWith(
-                            labelText: 'Vehículo',
-                            prefixIcon:
-                                const Icon(Icons.local_shipping_outlined),
-                          ),
-                          items: disponibles
-                              .map((v) => DropdownMenuItem<int>(
-                                    value: v['id'] as int,
-                                    child: Text(
-                                      '${v['placa']} - ${v['marca']} ${v['modelo']}',
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedVehiculoId = val),
-                          validator: (val) =>
-                              val == null ? 'Seleccione un vehículo' : null,
-                        );
+                        return VehiculoSelector(
+                            vehiculos: vehiculos,
+                            value: _selectedVehiculoId,
+                            onChanged: (v) => setState(
+                                () => _selectedVehiculoId = v['id'] as int));
                       },
                       loading: () => const LinearProgressIndicator(),
                       error: (e, _) => Text(
                         'Error al cargar vehículos: $e',
-                        style: AppTheme.bodySmall
-                            .copyWith(color: AppTheme.error),
+                        style:
+                            AppTheme.bodySmall.copyWith(color: AppTheme.error),
                       ),
                     ),
 
@@ -114,16 +98,14 @@ class _AsignacionJornadaScreenState
                       loading: () => const LinearProgressIndicator(),
                       error: (e, _) => Text(
                         'Error al cargar trabajadores: $e',
-                        style: AppTheme.bodySmall
-                            .copyWith(color: AppTheme.error),
+                        style:
+                            AppTheme.bodySmall.copyWith(color: AppTheme.error),
                       ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: AppTheme.spacingXXL),
-
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
@@ -156,7 +138,8 @@ class _AsignacionJornadaScreenState
     if (_selectedVehiculoId == null || _selectedConductorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor seleccione un vehículo y un conductor válidos.'),
+          content:
+              Text('Por favor seleccione un vehículo y un conductor válidos.'),
           backgroundColor: AppTheme.error,
         ),
       );

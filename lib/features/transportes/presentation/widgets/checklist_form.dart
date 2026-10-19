@@ -1,3 +1,4 @@
+import 'observacion_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
@@ -6,6 +7,10 @@ class ChecklistForm extends StatefulWidget {
   final int jornadaId;
   final String tipo;
   final double kilometrajeBase;
+  final double? kmInicial;
+  final int? nivelInicial;
+  final double? capacidadTanque;
+  final double galonesAbastecidos;
   final Future<void> Function(ChecklistRequest request) onSubmit;
 
   const ChecklistForm({
@@ -14,6 +19,10 @@ class ChecklistForm extends StatefulWidget {
     required this.tipo,
     required this.kilometrajeBase,
     required this.onSubmit,
+    this.kmInicial,
+    this.nivelInicial,
+    this.capacidadTanque,
+    this.galonesAbastecidos = 0,
   });
 
   @override
@@ -26,7 +35,17 @@ class _ChecklistFormState extends State<ChecklistForm> {
   final _estadoGeneralController = TextEditingController();
   final _obsController = TextEditingController();
 
-  String _nivelCombustible = '3/4';
+  String? _nivelCombustible;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.tipo != 'final') _nivelCombustible = '75';
+  }
+
+  bool _tieneObservaciones = false;
+  String _severidad = 'leve';
+  String? _foto;
   bool _conforme = true;
   bool _isSubmitting = false;
 
@@ -60,16 +79,28 @@ class _ChecklistFormState extends State<ChecklistForm> {
               ),
 
               Text(
-                'Checklist ${widget.tipo.toUpperCase()}',
+                widget.tipo == 'final'
+                    ? 'Finalizar Jornada'
+                    : 'Checklist de apertura',
                 style: AppTheme.titleLarge,
               ),
               const SizedBox(height: AppTheme.spacingXL),
 
+              if (widget.tipo == 'final') ...[
+                Text(
+                    'Odómetro inicial: ${widget.kmInicial ?? widget.kilometrajeBase} km'),
+                Text(
+                    'Combustible abastecido en ruta: ${widget.galonesAbastecidos.toStringAsFixed(2)} gal'),
+                const SizedBox(height: 12),
+              ],
               // Kilometraje
               TextFormField(
+                onChanged: (_) => setState(() {}),
                 controller: _kmController,
                 decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Kilometraje',
+                  labelText: widget.tipo == 'final'
+                      ? 'Odómetro Final (km)'
+                      : 'Kilometraje Inicial',
                   suffixText: 'km',
                   prefixIcon: const Icon(Icons.speed),
                   helperText:
@@ -83,8 +114,10 @@ class _ChecklistFormState extends State<ChecklistForm> {
                   if (v == null || v.trim().isEmpty) {
                     return 'Ingrese el kilometraje';
                   }
-                  final km = double.tryParse(v);
-                  if (km == null) return 'Valor numérico inválido';
+                  final km = double.tryParse(v.replaceAll(',', '.'));
+                  if (km == null || !km.isFinite) {
+                    return 'Valor numérico inválido';
+                  }
                   if (km < widget.kilometrajeBase) {
                     return 'El kilometraje no puede ser menor a ${widget.kilometrajeBase.toStringAsFixed(0)} km';
                   }
@@ -96,34 +129,40 @@ class _ChecklistFormState extends State<ChecklistForm> {
 
               // Nivel de combustible
               DropdownButtonFormField<String>(
-                value: _nivelCombustible,
+                initialValue: _nivelCombustible,
+                validator: (v) =>
+                    v == null ? 'Seleccione el combustible de cierre' : null,
                 decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Nivel de Combustible',
+                  labelText: widget.tipo == 'final'
+                      ? 'Combustible de cierre'
+                      : 'Nivel de Combustible',
                   prefixIcon: const Icon(Icons.local_gas_station),
                 ),
                 items: const [
-                  DropdownMenuItem(value: '1/4', child: Text('1/4')),
-                  DropdownMenuItem(value: '1/2', child: Text('1/2')),
-                  DropdownMenuItem(value: '3/4', child: Text('3/4')),
-                  DropdownMenuItem(value: 'Lleno', child: Text('Lleno')),
+                  DropdownMenuItem(value: '0', child: Text('Vacío')),
+                  DropdownMenuItem(value: '25', child: Text('1/4')),
+                  DropdownMenuItem(value: '50', child: Text('1/2')),
+                  DropdownMenuItem(value: '75', child: Text('3/4')),
+                  DropdownMenuItem(value: '100', child: Text('Lleno')),
                 ],
-                onChanged: (v) =>
-                    setState(() => _nivelCombustible = v ?? '3/4'),
+                onChanged: (v) => setState(() => _nivelCombustible = v ?? '75'),
               ),
 
               const SizedBox(height: AppTheme.spacingL),
 
-              // Estado general
-              TextFormField(
-                controller: _estadoGeneralController,
-                decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Estado General del Vehículo',
-                  prefixIcon: const Icon(Icons.car_repair),
+              if (widget.tipo == 'final') _resumenCierre(),
+              // Estado general de apertura; el cierre usa la conformidad del checklist.
+              if (widget.tipo != 'final')
+                TextFormField(
+                  controller: _estadoGeneralController,
+                  decoration: AppTheme.inputDecoration.copyWith(
+                    labelText: 'Estado General del Vehículo',
+                    prefixIcon: const Icon(Icons.car_repair),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Ingrese el estado general'
+                      : null,
                 ),
-                validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Ingrese el estado general'
-                    : null,
-              ),
 
               const SizedBox(height: AppTheme.spacingL),
 
@@ -137,7 +176,7 @@ class _ChecklistFormState extends State<ChecklistForm> {
                   style: AppTheme.bodySmall,
                 ),
                 value: _conforme,
-                activeColor: AppTheme.secondary,
+                activeThumbColor: AppTheme.secondary,
                 onChanged: (v) => setState(() => _conforme = v),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -145,14 +184,14 @@ class _ChecklistFormState extends State<ChecklistForm> {
               const SizedBox(height: AppTheme.spacingL),
 
               // Observaciones
-              TextFormField(
-                controller: _obsController,
-                decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Observaciones (opcional)',
-                  prefixIcon: const Icon(Icons.notes),
-                ),
-                maxLines: 3,
-              ),
+              ObservacionFields(
+                  obligatoria: !_conforme,
+                  onChanged: (activa, severidad, descripcion, foto) {
+                    _tieneObservaciones = activa;
+                    _severidad = severidad;
+                    _obsController.text = descripcion;
+                    _foto = foto;
+                  }),
 
               const SizedBox(height: AppTheme.spacingXXL),
 
@@ -171,7 +210,11 @@ class _ChecklistFormState extends State<ChecklistForm> {
                         )
                       : const Icon(Icons.send),
                   label: Text(
-                    _isSubmitting ? 'Enviando...' : 'Enviar Checklist',
+                    _isSubmitting
+                        ? 'Enviando...'
+                        : widget.tipo == 'final'
+                            ? 'Confirmar y Finalizar Jornada'
+                            : 'Enviar Checklist',
                   ),
                 ),
               ),
@@ -184,16 +227,48 @@ class _ChecklistFormState extends State<ChecklistForm> {
     );
   }
 
+  Widget _resumenCierre() {
+    final km = double.tryParse(_kmController.text.replaceAll(',', '.'));
+    final recorrido =
+        km == null ? null : km - (widget.kmInicial ?? widget.kilometrajeBase);
+    final nivel = double.tryParse(_nivelCombustible ?? '');
+    final consumo = nivel == null ||
+            widget.nivelInicial == null ||
+            widget.capacidadTanque == null
+        ? null
+        : (widget.nivelInicial! - nivel) / 100 * widget.capacidadTanque! +
+            widget.galonesAbastecidos;
+    return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+              'Resumen preliminar · Recorrido: ${recorrido != null && recorrido >= 0 ? recorrido.toStringAsFixed(1) : "Pendiente"} km'),
+          Text(
+              'Consumo estimado: ${consumo != null && consumo >= 0 ? consumo.toStringAsFixed(2) : "Sin estimación"} gal'),
+          Text(
+              'Rendimiento: ${recorrido != null && recorrido >= 0 && consumo != null && consumo > 0 ? (recorrido / consumo).toStringAsFixed(2) : "Sin estimación"} km/gal'),
+          if (widget.capacidadTanque == null)
+            const Text(
+                'La capacidad del tanque debe estar configurada para estimar el consumo.'),
+        ]));
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
     try {
       final request = ChecklistRequest(
+        tieneObservaciones: _tieneObservaciones,
+        severidad: _severidad,
+        fotoObservacion: _foto,
         tipo: widget.tipo,
-        kilometraje: double.parse(_kmController.text.trim()),
-        nivelCombustible: _nivelCombustible,
-        estadoGeneral: _estadoGeneralController.text.trim(),
+        kilometraje:
+            double.parse(_kmController.text.trim().replaceAll(',', '.')),
+        nivelCombustible: _nivelCombustible!,
+        estadoGeneral: widget.tipo == 'final'
+            ? (_conforme ? 'Conforme' : 'Con observaciones')
+            : _estadoGeneralController.text.trim(),
         conforme: _conforme,
         observaciones: _obsController.text.trim().isEmpty
             ? null

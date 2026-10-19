@@ -1,3 +1,5 @@
+import 'vehiculo_selector.dart';
+import 'observacion_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -14,7 +16,11 @@ import 'package:sistema_ocs/features/transportes/presentation/widgets/torque_for
 import 'package:sistema_ocs/features/transportes/presentation/widgets/trabajos_externos_form_widget.dart';
 
 class RegistroAccionForm extends ConsumerStatefulWidget {
-  const RegistroAccionForm({super.key, this.onRegistered});
+  const RegistroAccionForm(
+      {super.key, this.onRegistered, this.jornada, this.soloApertura = false});
+
+  final JornadaTransporte? jornada;
+  final bool soloApertura;
 
   final VoidCallback? onRegistered;
 
@@ -48,6 +54,38 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
     "Otras"
   ];
 
+  final Map<String, List<String>> _categorias = {
+    'Fluidos y Motor': [
+      'Nivel de aceite',
+      'Nivel de refrigerante',
+      'Líquido de frenos',
+      'Ausencia de fugas visibles'
+    ],
+    'Sistema Eléctrico y Luces': [
+      'Faros principales',
+      'Direccionales e intermitentes',
+      'Bocina',
+      'Luces de frenado y reversa'
+    ],
+    'Neumáticos y Ruedas': [
+      'Presión de llantas',
+      'Cocada visible segura',
+      'Tuercas completas'
+    ],
+  };
+  @override
+  void initState() {
+    super.initState();
+    _vehiculoId = widget.jornada?.vehiculoId;
+    _nivelCombustible = widget.jornada?.nivelCombustible;
+    if (widget.soloApertura) _accionSeleccionada = "Empezar a Conducir";
+    for (final items in _categorias.values) {
+      for (final item in items) {
+        _checklistFlash[item] = false;
+      }
+    }
+  }
+
   final Map<String, bool> _checklistFlash = {
     "Documentos en vigencia (Soat, Rev.Tec., Tarjeta propiedad, licencia)":
         false,
@@ -73,6 +111,11 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   final _kmController = TextEditingController();
   bool _loadingKm = false;
   bool _isSubmitting = false;
+  bool _tieneObservaciones = false;
+  String _severidad = 'leve';
+  String? _foto;
+  bool _esGrua = false;
+  bool _esLigero = false;
 
   @override
   void dispose() {
@@ -111,6 +154,16 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
 
   @override
   Widget build(BuildContext context) {
+    final vehiculos = ref.watch(vehiculosDisponiblesProvider).value ?? [];
+    final actual = vehiculos.where((v) => v['id'] == _vehiculoId);
+    if (actual.isNotEmpty) {
+      final v = actual.first;
+      final tipo = (v['tipo'] ?? v['modelo'] ?? '').toString().toLowerCase();
+      _esLigero = ['camioneta', 'coaster'].contains(tipo);
+      _esGrua = tipo.contains('grúa') ||
+          tipo.contains('grua') ||
+          (v['tipo'] == null && ['Z7F-777', 'Z7M-813'].contains(v['placa']));
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       child: AppCard(
@@ -129,7 +182,22 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                   labelText: 'ACCIÓN A REALIZAR',
                   prefixIcon: const Icon(Icons.touch_app),
                 ),
+                key: ValueKey("$_vehiculoId-$_esGrua"),
+                initialValue: _accionSeleccionada,
                 items: _acciones
+                    .where((a) => widget.soloApertura
+                        ? a == 'Empezar a Conducir'
+                        : widget.jornada != null
+                            ? a != 'Empezar a Conducir'
+                            : true)
+                    .where((a) =>
+                        (a != "Operar Grúa" || _esGrua) &&
+                        (!_esLigero ||
+                            ![
+                              "Medición de Cocada",
+                              "Medición de Torque",
+                              "Trabajos a Externos"
+                            ].contains(a)))
                     .map((a) => DropdownMenuItem(
                           value: a,
                           child: Text(a, overflow: TextOverflow.ellipsis),
@@ -189,19 +257,15 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
                 ),
               ],
               const SizedBox(height: AppTheme.spacingL),
-              TextFormField(
-                controller: _observacionesController,
-                decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'OBSERVACIONES',
-                  alignLabelWithHint: true,
-                  helperText:
-                      'Informar si hay alguna condición para revisar y/o reparar, reponer, implementar u oportunidades de mejora',
-                  helperMaxLines: 5,
-                ),
-                maxLines: 3,
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Ingrese observaciones'
-                    : null,
+              ObservacionFields(
+                obligatoria: _accionSeleccionada ==
+                    'Reporte de Incidencias u Observaciones',
+                onChanged: (activa, severidad, descripcion, foto) {
+                  _tieneObservaciones = activa;
+                  _severidad = severidad;
+                  _observacionesController.text = descripcion;
+                  _foto = foto;
+                },
               ),
               const SizedBox(height: AppTheme.spacingXL),
               SizedBox(
@@ -269,28 +333,27 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
         // ── Vehículo ──
         vehiculosAsync.when(
           data: (vehiculos) {
-            final disponibles =
-                vehiculos.where((v) => v['estado'] == 'disponible').toList();
-            return DropdownButtonFormField<int>(
-              isExpanded: true,
-              decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Vehículo',
-                prefixIcon: const Icon(Icons.local_shipping_outlined),
-              ),
-              items: disponibles
-                  .map((v) => DropdownMenuItem<int>(
-                        value: v['id'] as int,
-                        child: Text(
-                          '${v['placa']} - ${v['marca']} ${v['modelo']}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                setState(() => _vehiculoId = val);
-                _fetchKilometraje(val);
+            if (widget.jornada != null) {
+              final lista = vehiculos.where((v) => v['id'] == _vehiculoId);
+              final vehiculo = lista.isEmpty ? null : lista.first;
+              return _buildReadonlyField(
+                  'Vehículo de la jornada',
+                  Icons.local_shipping,
+                  vehiculo == null
+                      ? 'Vehículo #$_vehiculoId'
+                      : '${vehiculo['placa']} · ${vehiculo['tipo'] ?? vehiculo['modelo']}');
+            }
+            return VehiculoSelector(
+              vehiculos: vehiculos,
+              value: _vehiculoId,
+              onChanged: (v) {
+                setState(() {
+                  _vehiculoId = v['id'] as int;
+                  _accionSeleccionada =
+                      widget.soloApertura ? 'Empezar a Conducir' : null;
+                });
+                _fetchKilometraje(_vehiculoId);
               },
-              validator: (val) => val == null ? 'Seleccione un vehículo' : null,
             );
           },
           loading: () => const LinearProgressIndicator(),
@@ -299,56 +362,62 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
         ),
         const SizedBox(height: AppTheme.spacingL),
 
-        // ── Kilometraje Inicial ──
-        TextFormField(
-          controller: _kmController,
-          readOnly: true,
-          decoration: AppTheme.inputDecoration.copyWith(
-            labelText: 'Kilometraje Inicial',
-            prefixIcon: const Icon(Icons.speed),
-            helperText: 'Km registrado del vehículo al inicio',
-            suffixIcon: _loadingKm
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
+        if (_accionSeleccionada != 'Operar Grúa') ...[
+          // ── Kilometraje Inicial ──
+          TextFormField(
+            controller: _kmController,
+            decoration: AppTheme.inputDecoration.copyWith(
+              labelText: widget.jornada == null
+                  ? 'Kilometraje Inicial'
+                  : 'Odómetro al registrar la actividad',
+              prefixIcon: const Icon(Icons.speed),
+              helperText: 'Km registrado del vehículo al inicio',
+              suffixIcon: _loadingKm
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: (value) {
+              final kmStr = value?.replaceAll(',', '.') ?? '';
+              final km = double.tryParse(kmStr);
+              return km == null || km <= 0
+                  ? 'El kilometraje inicial debe ser mayor que cero'
+                  : null;
+            },
           ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (value) {
-            final km = double.tryParse(value ?? '');
-            return km == null || km <= 0
-                ? 'El kilometraje inicial debe ser mayor que cero'
-                : null;
-          },
-        ),
-        const SizedBox(height: AppTheme.spacingL),
+          const SizedBox(height: AppTheme.spacingL),
 
-        // ── Combustible Inicial ──
-        FormField<int>(
-          validator: (value) => value == null
-              ? 'Seleccione el nivel de combustible inicial'
-              : null,
-          builder: (field) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FuelGaugeSelector(
-                value: _nivelCombustible,
-                onChanged: (value) {
-                  field.didChange(value);
-                  setState(() => _nivelCombustible = value);
-                },
-              ),
-              if (field.hasError)
-                Text(field.errorText!,
-                    style: AppTheme.bodySmall.copyWith(color: AppTheme.error)),
-            ],
+          // ── Combustible Inicial ──
+          FormField<int>(
+            initialValue: _nivelCombustible,
+            validator: (value) => value == null
+                ? 'Seleccione el nivel de combustible inicial'
+                : null,
+            builder: (field) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FuelGaugeSelector(
+                  value: _nivelCombustible,
+                  onChanged: (value) {
+                    field.didChange(value);
+                    setState(() => _nivelCombustible = value);
+                  },
+                ),
+                if (field.hasError)
+                  Text(field.errorText!,
+                      style:
+                          AppTheme.bodySmall.copyWith(color: AppTheme.error)),
+              ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -417,16 +486,28 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
-            children: _checklistFlash.keys.map((item) {
-              return CheckboxListTile(
-                title: Text(item, style: AppTheme.bodySmall, softWrap: true),
-                value: _checklistFlash[item],
-                onChanged: (val) =>
-                    setState(() => _checklistFlash[item] = val ?? false),
-                dense: true,
-                controlAffinity: ListTileControlAffinity.leading,
-              );
-            }).toList(),
+            children: [
+              for (final categoria in {
+                ..._categorias,
+                'Seguridad y Documentos': _checklistFlash.keys
+                    .where((k) =>
+                        !_categorias.values.any((items) => items.contains(k)))
+                    .toList()
+              }.entries) ...[
+                const Divider(),
+                Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(categoria.key, style: AppTheme.labelLarge)),
+                for (final item in categoria.value)
+                  CheckboxListTile(
+                      title:
+                          Text(item, style: AppTheme.bodySmall, softWrap: true),
+                      value: _checklistFlash[item],
+                      onChanged: (v) =>
+                          setState(() => _checklistFlash[item] = v ?? false),
+                      controlAffinity: ListTileControlAffinity.leading),
+              ],
+            ],
           ),
         ),
       ],
@@ -450,35 +531,43 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       return;
     }
 
-    if ((_accionSeleccionada == "Empezar a Conducir" ||
-            _accionSeleccionada == "Check List y/o V°B° de vehículos") &&
-        _checklistFlash.values.any((v) => !v)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debe confirmar todos los ítems del Check List Flash.'),
-          backgroundColor: AppTheme.error,
-        ),
-      );
+    if ((_accionSeleccionada == 'Empezar a Conducir' ||
+            _accionSeleccionada == 'Check List y/o V°B° de vehículos') &&
+        _checklistFlash.values.any((v) => !v) &&
+        !_tieneObservaciones) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Confirme los ítems del checklist o active observaciones y adjunte evidencia de la falla.')));
       return;
     }
-
     setState(() => _isSubmitting = true);
     try {
       await ref.read(jornadaNotifierProvider.notifier).registrarAccion(
             RegistroAccionRequest(
               accionTipo: _accionSeleccionada!,
               vehiculoId: _vehiculoId!,
+              jornadaPadreId: widget.jornada?.id,
+              kmInicial: _accionSeleccionada == 'Operar Grúa'
+                  ? null
+                  : double.parse(_kmController.text.replaceAll(',', '.')),
               ruta: _accionSeleccionada == 'Empezar a Conducir'
                   ? (_rutaSeleccionada == 'Otras'
                       ? _otraRutaController.text.trim()
                       : _rutaSeleccionada)
                   : null,
-              nivelCombustible: _nivelCombustible!,
+              nivelCombustible: _accionSeleccionada == 'Operar Grúa'
+                  ? null
+                  : _nivelCombustible!,
               checklistFlash: _accionSeleccionada == 'Empezar a Conducir' ||
                       _accionSeleccionada == 'Check List y/o V°B° de vehículos'
                   ? _checklistFlash
                   : null,
-              observaciones: _observacionesController.text.trim(),
+              tieneObservaciones: _tieneObservaciones,
+              severidad: _severidad,
+              fotoObservacion: _foto,
+              observaciones: _tieneObservaciones
+                  ? _observacionesController.text.trim()
+                  : 'Sin novedades',
               detallesGrua: _detallesGrua,
               detallesCombustible: _detallesCombustible,
               detallesMantenimiento: _detallesMantenimiento,
@@ -496,6 +585,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
         ),
       );
       // Trigger a refresh of the miJornadaProvider
+      ref.invalidate(vehiculosDisponiblesProvider);
       ref.invalidate(miJornadaProvider);
       ref.invalidate(accionesRegistradasProvider);
       widget.onRegistered?.call();

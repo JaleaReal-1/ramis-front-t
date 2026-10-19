@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/data/network/dio_client.dart';
 import 'package:sistema_ocs/features/login/auth_notifier.dart';
@@ -43,26 +44,29 @@ final trabajadoresProvider =
 
 // ── Mi Jornada (trabajador) ─────────────────────────────────
 
+final vehiculoJornadaProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, int>((ref, id) async {
+  final timer =
+      Timer.periodic(const Duration(seconds: 30), (_) => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
+  return ref.watch(transporteRepositoryProvider).obtenerVehiculo(id);
+});
+
 final miJornadaProvider = FutureProvider<JornadaTransporte?>((ref) async {
-  try {
-    final user = await ref.watch(currentUserForTransportProvider.future);
-    if (user == null) return null;
-    final repo = ref.watch(transporteRepositoryProvider);
-    final jornadas = await repo.listarJornadas();
-    final activas = jornadas.where(
-      (j) =>
-          j.conductorId == user.id &&
-          (j.estado == 'pendiente' || j.estado == 'en_curso') &&
-          j.vehiculoId != null &&
-          (j.accionTipo == null || j.accionTipo == 'Empezar a Conducir'),
-    );
-    if (activas.isEmpty) return null;
-    // Fetch detail for the first active jornada to get checklists/incidencias
-    final jornada = await repo.obtenerJornada(activas.first.id);
-    return jornada.vehiculoId == null ? null : jornada;
-  } on TransportFailure {
-    return null;
-  }
+  final timer =
+      Timer.periodic(const Duration(seconds: 30), (_) => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
+  final user = await ref.watch(currentUserForTransportProvider.future);
+  if (user == null) return null;
+  final repo = ref.watch(transporteRepositoryProvider);
+  final jornadas = await repo.listarJornadas();
+  final activas = jornadas.where((j) =>
+      j.conductorId == user.id &&
+      j.jornadaPadreId == null &&
+      (j.estado == 'pendiente' || j.estado == 'en_curso') &&
+      j.vehiculoId != null);
+  if (activas.isEmpty) return null;
+  return repo.obtenerJornada(activas.first.id);
 });
 
 // ── Jornada Notifier (state management) ─────────────────────
@@ -80,6 +84,8 @@ class JornadaNotifier extends StateNotifier<AsyncValue<JornadaTransporte?>> {
   Future<void> registrarAccion(RegistroAccionRequest request) async {
     if (request.accionTipo != 'Empezar a Conducir') {
       await _repository.registrarAccion(request);
+      final actual = state.value;
+      if (actual != null) await refreshJornada(actual.id);
       return;
     }
     await _execute(() async {
@@ -110,8 +116,7 @@ class JornadaNotifier extends StateNotifier<AsyncValue<JornadaTransporte?>> {
     state = const AsyncValue.loading();
     try {
       await _repository.registrarIncidencia(jornadaId, request);
-      // Retain previous jornada state (incidencia doesn't change jornada estado)
-      state = AsyncValue.data(previous);
+      state = AsyncValue.data(await _repository.obtenerJornada(jornadaId));
     } catch (error) {
       state = AsyncValue.data(previous);
       rethrow;

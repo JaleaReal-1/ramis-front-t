@@ -1,5 +1,11 @@
 class JornadaTransporte {
   const JornadaTransporte({
+    this.subAcciones = const <JornadaTransporte>[],
+    this.estadoSemaforo = 'verde',
+    this.fotoObservacion,
+    this.jornadaPadreId,
+    this.galonesConsumidos,
+    this.rendimientoKmGalon,
     required this.id,
     required this.conductorId,
     required this.estado,
@@ -27,6 +33,12 @@ class JornadaTransporte {
     this.detallesTrabajosExternos,
   });
 
+  final List<JornadaTransporte> subAcciones;
+  final String estadoSemaforo;
+  final String? fotoObservacion;
+  final int? jornadaPadreId;
+  final double? galonesConsumidos;
+  final double? rendimientoKmGalon;
   final int id;
   final int? vehiculoId;
   final int conductorId;
@@ -78,6 +90,8 @@ class Checklist {
 
 class IncidenciaRuta {
   const IncidenciaRuta({
+    this.fotoIncidencia,
+    this.severidad,
     required this.id,
     required this.jornadaId,
     required this.tipo,
@@ -85,6 +99,8 @@ class IncidenciaRuta {
     required this.fecha,
   });
 
+  final String? fotoIncidencia;
+  final String? severidad;
   final int id;
   final int jornadaId;
   final String tipo;
@@ -129,12 +145,21 @@ class AccionCombustibleRequest {
   const AccionCombustibleRequest({
     this.galones,
     this.nivelFinal,
+    this.costo,
+    this.comprobante,
+    this.odometro,
   });
 
+  final double? costo;
+  final String? comprobante;
+  final double? odometro;
   final double? galones;
   final int? nivelFinal;
 
   Map<String, dynamic> toJson() => {
+        if (costo != null) 'costo': costo,
+        if (comprobante != null) 'comprobante': comprobante,
+        if (odometro != null) 'odometro': odometro,
         if (galones != null) 'galones': galones,
         if (nivelFinal != null) 'nivel_final': nivelFinal,
       };
@@ -205,10 +230,15 @@ class RegistroAccionRequest {
   const RegistroAccionRequest({
     required this.accionTipo,
     required this.vehiculoId,
+    this.kmInicial,
+    this.jornadaPadreId,
     this.ruta,
-    required this.nivelCombustible,
+    this.nivelCombustible,
     this.checklistFlash,
     required this.observaciones,
+    this.tieneObservaciones = false,
+    this.severidad,
+    this.fotoObservacion,
     this.detallesGrua,
     this.detallesCombustible,
     this.detallesMantenimiento,
@@ -220,8 +250,10 @@ class RegistroAccionRequest {
 
   final String accionTipo;
   final int vehiculoId;
+  final double? kmInicial;
+  final int? jornadaPadreId;
   final String? ruta;
-  final int nivelCombustible;
+  final int? nivelCombustible;
   final Map<String, dynamic>? checklistFlash;
   final String observaciones;
   final AccionGruaRequest? detallesGrua;
@@ -232,11 +264,20 @@ class RegistroAccionRequest {
   final AccionTorqueRequest? detallesTorque;
   final AccionTrabajosExternosRequest? detallesTrabajosExternos;
 
+  final bool tieneObservaciones;
+  final String? severidad;
+  final String? fotoObservacion;
+
   Map<String, dynamic> toJson() => {
+        'tiene_observaciones': tieneObservaciones,
+        if (tieneObservaciones) 'severidad': severidad,
+        if (tieneObservaciones) 'foto_observacion': fotoObservacion,
         'accion_tipo': accionTipo,
         'vehiculo_id': vehiculoId,
+        if (kmInicial != null) 'km_inicial': kmInicial,
+        if (jornadaPadreId != null) 'jornada_padre_id': jornadaPadreId,
         if (ruta != null) 'ruta': ruta,
-        'nivel_combustible': nivelCombustible,
+        if (nivelCombustible != null) 'nivel_combustible': nivelCombustible,
         if (checklistFlash != null) 'checklist_flash': checklistFlash,
         'observaciones': observaciones.trim(),
         if (detallesGrua != null) 'detalles_grua': detallesGrua!.toJson(),
@@ -260,6 +301,9 @@ class ChecklistRequest {
     required this.estadoGeneral,
     required this.conforme,
     this.observaciones,
+    this.tieneObservaciones = false,
+    this.severidad,
+    this.fotoObservacion,
     this.tipo = 'inicial',
   });
 
@@ -270,7 +314,14 @@ class ChecklistRequest {
   final String? observaciones;
   final String tipo;
 
+  final bool tieneObservaciones;
+  final String? severidad;
+  final String? fotoObservacion;
+
   Map<String, dynamic> toJson() => {
+        'tiene_observaciones': tieneObservaciones,
+        if (tieneObservaciones) 'severidad': severidad,
+        if (tieneObservaciones) 'foto_observacion': fotoObservacion,
         'tipo': tipo,
         'kilometraje': kilometraje,
         'nivel_combustible': nivelCombustible,
@@ -283,14 +334,20 @@ class ChecklistRequest {
 
 class IncidenciaRutaRequest {
   const IncidenciaRutaRequest({
+    this.severidad,
+    this.fotoIncidencia,
     required this.tipo,
     required this.descripcion,
   });
 
+  final String? severidad;
+  final String? fotoIncidencia;
   final String tipo;
   final String descripcion;
 
   Map<String, dynamic> toJson() => {
+        if (severidad != null) 'severidad': severidad,
+        if (fotoIncidencia != null) 'foto_incidencia': fotoIncidencia,
         'tipo': tipo,
         'descripcion': descripcion,
       };

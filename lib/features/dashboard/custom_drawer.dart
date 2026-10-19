@@ -7,6 +7,8 @@ import 'package:sistema_ocs/data/models/user_model.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/asignacion_jornada_screen.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/conductor_jornada_screen.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/admin_transportes_screen.dart';
+import 'package:sistema_ocs/features/login/login_provider.dart';
+import 'package:sistema_ocs/features/login/login_screen.dart';
 
 class CustomDrawer extends ConsumerWidget {
   final Function(int) onMenuItemTap;
@@ -90,9 +92,13 @@ class CustomDrawer extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.logout, color: AppTheme.error),
                 title: const Text('Cerrar Sesión'),
-                onTap: () {
-                  ref.read(authNotifierProvider.notifier).logout();
+                onTap: () async {
                   Navigator.pop(context);
+                  await ref.read(authNotifierProvider.notifier).logout();
+                  ref.read(navigatorKeyProvider).currentState?.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
                 },
               ),
             ],

@@ -1,10 +1,13 @@
+import '../widgets/observacion_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
 import 'package:sistema_ocs/features/transportes/presentation/screens/mi_jornada_screen.dart';
-import 'package:sistema_ocs/features/transportes/presentation/widgets/registro_accion_form.dart';
 import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dart';
+import 'package:sistema_ocs/features/login/auth_notifier.dart';
+import 'package:sistema_ocs/features/login/login_provider.dart';
+import 'package:sistema_ocs/features/login/login_screen.dart';
 
 class ConductorJornadaScreen extends ConsumerStatefulWidget {
   const ConductorJornadaScreen({super.key});
@@ -17,32 +20,54 @@ class ConductorJornadaScreen extends ConsumerStatefulWidget {
 class _ConductorJornadaScreenState
     extends ConsumerState<ConductorJornadaScreen> {
   int _selectedIndex = 0;
-  int _formVersion = 0;
-
-  void _actionRegistered() {
-    setState(() {
-      _formVersion++;
-      _selectedIndex = 0;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(_selectedIndex == 0 ? 'Acciones registradas' : 'Nueva acción'),
+        title: Text(_selectedIndex == 0
+            ? 'Seguimiento de la Jornada Actual'
+            : 'Historial de jornadas'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Cerrar Sesión'),
+                  content:
+                      const Text('¿Estás seguro de que deseas cerrar sesión?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Cerrar Sesión'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await ref.read(authNotifierProvider.notifier).logout();
+                ref.read(navigatorKeyProvider).currentState?.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+              }
+            },
+          ),
+        ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
+          const MiJornadaScreen(embedded: true),
           _AccionesRegistradasTab(
-            onNewAction: () => setState(() => _selectedIndex = 1),
-          ),
-          RegistroAccionForm(
-            key: ValueKey(_formVersion),
-            onRegistered: _actionRegistered,
-          ),
+              onNewAction: () => setState(() => _selectedIndex = 0)),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -51,15 +76,13 @@ class _ConductorJornadaScreenState
             setState(() => _selectedIndex = index),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'Registradas',
-          ),
+              icon: Icon(Icons.local_shipping_outlined),
+              selectedIcon: Icon(Icons.local_shipping),
+              label: 'Seguimiento'),
           NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Nueva acción',
-          ),
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history),
+              label: 'Historial'),
         ],
       ),
     );
@@ -208,9 +231,7 @@ class _AccionTileState extends ConsumerState<_AccionTile> {
       child: ExpansionTile(
         onExpansionChanged: (expanded) => setState(() => _expanded = expanded),
         leading: Icon(_iconoAccion(accion.accionTipo),
-            color: accion.estado == 'en_curso'
-                ? AppTheme.primary
-                : AppTheme.secondary),
+            color: colorSemaforo(accion.estadoSemaforo)),
         title: Text(accion.accionTipo ?? 'Acción #${accion.id}',
             maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: Text(
@@ -260,6 +281,13 @@ class _DetalleAccion extends ConsumerWidget {
                         : '${accion.nivelCombustible}%'),
                 _dato('Ruta', accion.ruta),
                 _dato('Observaciones', accion.observaciones),
+                if (accion.fotoObservacion != null)
+                  FotoObservacion(url: accion.fotoObservacion!),
+                _dato('Jornada principal', accion.jornadaPadreId?.toString()),
+                _dato('Galones consumidos',
+                    accion.galonesConsumidos?.toStringAsFixed(2)),
+                _dato('Rendimiento km/gal',
+                    accion.rendimientoKmGalon?.toStringAsFixed(2)),
                 if (accion.detallesGrua case final detalle?) ...[
                   _dato('Actividad', detalle['actividad']?.toString()),
                   _dato('Horómetro inicial',

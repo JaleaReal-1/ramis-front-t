@@ -8,6 +8,13 @@ class TransporteRepositoryImpl {
   TransporteRepositoryImpl(this._dio);
 
   final Dio _dio;
+  Future<String> subirFoto(List<int> bytes, String nombre) async {
+    final res = await _request(() => _dio.post(
+        '${ApiConfig.baseUrl}/api/jornadas/fotos',
+        data: FormData.fromMap(
+            {'file': MultipartFile.fromBytes(bytes, filename: nombre)})));
+    return _map(res.data)['url'] as String;
+  }
 
   // ── Jornadas ────────────────────────────────────────────
 
@@ -18,16 +25,20 @@ class TransporteRepositoryImpl {
     return JornadaTransporteModel.fromJson(_map(res.data));
   }
 
-  Future<JornadaTransporte> registrarAccion(RegistroAccionRequest request) async {
+  Future<JornadaTransporte> registrarAccion(
+      RegistroAccionRequest request) async {
     final res = await _request(
-      () => _dio.post('${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/registro-accion', data: request.toJson()),
+      () => _dio.post(
+          '${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/registro-accion',
+          data: request.toJson()),
     );
     return JornadaTransporteModel.fromJson(_map(res.data));
   }
 
   Future<double> obtenerKilometrajeVehiculo(int vehiculoId) async {
     final res = await _request(
-      () => _dio.get('${ApiConfig.baseUrl}/api/vehiculos/$vehiculoId/kilometraje'),
+      () => _dio
+          .get('${ApiConfig.baseUrl}/api/vehiculos/$vehiculoId/kilometraje'),
     );
     final data = _map(res.data);
     return (data['kilometraje_actual'] as num?)?.toDouble() ?? 0.0;
@@ -44,7 +55,8 @@ class TransporteRepositoryImpl {
 
   Future<JornadaTransporte> obtenerJornada(int jornadaId) async {
     final res = await _request(
-      () => _dio.get('${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/$jornadaId'),
+      () => _dio
+          .get('${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/$jornadaId'),
     );
     return JornadaTransporteModel.fromJson(_map(res.data));
   }
@@ -99,9 +111,20 @@ class TransporteRepositoryImpl {
         .toList();
   }
 
+  Future<void> actualizarDatosVehiculo(
+      int id, String tipo, double? capacidad) async {
+    await _request(() => _dio.put(
+            '${ApiConfig.baseUrl}${ApiConfig.endpointVehiculos}/$id',
+            data: {
+              'tipo': tipo,
+              if (capacidad != null) 'capacidad_tanque_galones': capacidad
+            }));
+  }
+
   Future<Map<String, dynamic>> obtenerVehiculo(int vehiculoId) async {
     final res = await _request(
-      () => _dio.get('${ApiConfig.baseUrl}${ApiConfig.endpointVehiculos}/$vehiculoId'),
+      () => _dio.get(
+          '${ApiConfig.baseUrl}${ApiConfig.endpointVehiculos}/$vehiculoId'),
     );
     return _map(res.data);
   }

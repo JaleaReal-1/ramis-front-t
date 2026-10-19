@@ -39,7 +39,10 @@ class AuthNotifier extends StateNotifier<AuthStatus> {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt_token');
+    try {
+      await _authService.logout();
+    } catch (_) {}
+    await _storage.deleteAll();
     state = AuthStatus.unauthenticated;
   }
 }

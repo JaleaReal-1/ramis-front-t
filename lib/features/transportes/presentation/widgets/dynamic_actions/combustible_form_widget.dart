@@ -15,10 +15,14 @@ class CombustibleFormWidget extends StatefulWidget {
 class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
   final _galonesController = TextEditingController();
   int? _nivelFinal;
+  final _costoController = TextEditingController();
+  final _comprobanteController = TextEditingController();
 
   @override
   void dispose() {
     _galonesController.dispose();
+    _costoController.dispose();
+    _comprobanteController.dispose();
     super.dispose();
   }
 
@@ -26,6 +30,8 @@ class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
 
   void _emit() {
     widget.onChanged(AccionCombustibleRequest(
+      costo: _galones(_costoController.text),
+      comprobante: _comprobanteController.text.trim(),
       galones: _galones(_galonesController.text),
       nivelFinal: _nivelFinal,
     ));
@@ -36,6 +42,20 @@ class _CombustibleFormWidgetState extends State<CombustibleFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        TextFormField(
+            controller: _costoController,
+            decoration: const InputDecoration(labelText: 'Costo total (S/)'),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => _emit(),
+            validator: (v) => (v ?? '').isNotEmpty &&
+                    (_galones(v!) == null || _galones(v)! < 0)
+                ? 'Ingrese un costo válido'
+                : null),
+        TextFormField(
+            controller: _comprobanteController,
+            decoration: const InputDecoration(labelText: 'N° factura / vale'),
+            maxLength: 100,
+            onChanged: (_) => _emit()),
         TextFormField(
           controller: _galonesController,
           decoration: AppTheme.inputDecoration.copyWith(

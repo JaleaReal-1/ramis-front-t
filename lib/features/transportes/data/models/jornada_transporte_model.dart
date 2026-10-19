@@ -2,6 +2,12 @@ import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transpo
 
 class JornadaTransporteModel extends JornadaTransporte {
   const JornadaTransporteModel({
+    super.subAcciones,
+    super.estadoSemaforo,
+    super.fotoObservacion,
+    super.jornadaPadreId,
+    super.galonesConsumidos,
+    super.rendimientoKmGalon,
     required super.id,
     super.vehiculoId,
     required super.conductorId,
@@ -31,6 +37,12 @@ class JornadaTransporteModel extends JornadaTransporte {
 
   factory JornadaTransporteModel.fromJson(Map<String, dynamic> json) {
     return JornadaTransporteModel(
+      subAcciones: _list(json['sub_acciones'], JornadaTransporteModel.fromJson),
+      estadoSemaforo: json['estado_semaforo'] as String? ?? 'verde',
+      fotoObservacion: json['foto_observacion'] as String?,
+      jornadaPadreId: (json['jornada_padre_id'] as num?)?.toInt(),
+      galonesConsumidos: (json['galones_consumidos'] as num?)?.toDouble(),
+      rendimientoKmGalon: (json['rendimiento_km_galon'] as num?)?.toDouble(),
       id: _int(json, 'id'),
       vehiculoId:
           json['vehiculo_id'] != null ? _int(json, 'vehiculo_id') : null,
@@ -94,6 +106,8 @@ class ChecklistModel extends Checklist {
 
 class IncidenciaRutaModel extends IncidenciaRuta {
   const IncidenciaRutaModel({
+    super.fotoIncidencia,
+    super.severidad,
     required super.id,
     required super.jornadaId,
     required super.tipo,
@@ -103,6 +117,8 @@ class IncidenciaRutaModel extends IncidenciaRuta {
 
   factory IncidenciaRutaModel.fromJson(Map<String, dynamic> json) {
     return IncidenciaRutaModel(
+      fotoIncidencia: json['foto_incidencia'] as String?,
+      severidad: json['severidad'] as String?,
       id: _int(json, 'id'),
       jornadaId: _int(json, 'jornada_id'),
       tipo: _str(json, 'tipo'),

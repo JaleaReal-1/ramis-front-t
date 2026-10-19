@@ -1,3 +1,5 @@
+import '../../providers/jornadas_provider.dart';
+import '../widgets/observacion_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -53,33 +55,75 @@ class _JornadasTab extends ConsumerWidget {
           }
           return ListView.builder(
             padding: const EdgeInsets.all(AppTheme.spacingM),
-            itemCount: jornadas.length,
+            itemCount: jornadas.length + 1,
             itemBuilder: (_, i) {
-              final j = jornadas[i];
-              final tieneAlerta =
-                  (j['alerta_horas'] as bool? ?? false) ||
+              if (i == 0) {
+                final cerradas = jornadas.where((j) =>
+                    j['jornada_padre_id'] == null &&
+                    j['galones_consumidos'] != null);
+                final galones = cerradas.fold<double>(
+                    0,
+                    (total, j) =>
+                        total + (j['galones_consumidos'] as num).toDouble());
+                final km = cerradas.fold<double>(
+                    0,
+                    (total, j) =>
+                        total +
+                        ((j['km_final'] as num?)?.toDouble() ?? 0) -
+                        ((j['km_inicial'] as num?)?.toDouble() ?? 0));
+                return Card(
+                    child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                            'Consumo consolidado: ${galones.toStringAsFixed(2)} gal · ${km.toStringAsFixed(1)} km · ${galones > 0 ? (km / galones).toStringAsFixed(2) : "Sin datos"} km/gal')));
+              }
+              final j = jornadas[i - 1];
+              final tieneAlerta = (j['alerta_horas'] as bool? ?? false) ||
                   (j['alerta_km'] as bool? ?? false);
               return Card(
                 margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                child: ListTile(
+                child: ExpansionTile(
                   leading: Icon(
-                    tieneAlerta ? Icons.warning_amber : Icons.check_circle_outline,
-                    color: tieneAlerta ? AppTheme.warning : AppTheme.secondary,
+                    tieneAlerta
+                        ? Icons.warning_amber
+                        : Icons.check_circle_outline,
+                    color: colorSemaforo(
+                        j['estado_semaforo'] as String? ?? 'verde'),
                   ),
-                  title: Text('Jornada #${j['id']} - Conductor ID: ${j['conductor_id']}'),
+                  title: Text(
+                      'Jornada #${j['id']} - Conductor ID: ${j['conductor_id']}'),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Estado: ${j['estado']} | Acción: ${j['accion_tipo'] ?? 'N/A'}'),
+                      Text(
+                          'Estado: ${j['estado']} | Acción: ${j['accion_tipo'] ?? 'N/A'}'),
                       if (tieneAlerta)
                         Text(
                           '⚠ Tiene alertas de horas/km',
-                          style: AppTheme.bodySmall.copyWith(color: AppTheme.error),
+                          style: AppTheme.bodySmall
+                              .copyWith(color: AppTheme.error),
                         ),
                     ],
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  isThreeLine: true,
+                  children: [
+                    Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'Vehículo #${j['vehiculo_id']} · Jornada principal: ${j['jornada_padre_id'] ?? j['id']}'),
+                              Text(j['observaciones'] as String? ??
+                                  'Sin novedades'),
+                              if (j['foto_observacion'] != null)
+                                FotoObservacion(
+                                    url: j['foto_observacion'] as String),
+                              Text(
+                                  'Km efectivos: ${j['km_final'] != null && j['km_inicial'] != null ? (j['km_final'] as num) - (j['km_inicial'] as num) : 'Pendiente'}'),
+                              Text(
+                                  'Consumo: ${j['galones_consumidos'] ?? 'Sin datos de tanque/cierre'} gal · Rendimiento: ${j['rendimiento_km_galon'] ?? 'Pendiente'} km/gal'),
+                            ])),
+                  ],
                 ),
               );
             },
@@ -107,9 +151,22 @@ class _FotaTab extends ConsumerWidget {
           }
           return ListView.builder(
             padding: const EdgeInsets.all(AppTheme.spacingM),
-            itemCount: vehiculos.length,
+            itemCount: vehiculos.length + 1,
             itemBuilder: (_, i) {
-              final v = vehiculos[i];
+              if (i == 0) {
+                return Card(
+                    child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Wrap(spacing: 16, children: [
+                          for (final estado in ['verde', 'amarillo', 'rojo'])
+                            Chip(
+                                avatar: Icon(Icons.circle,
+                                    color: colorSemaforo(estado), size: 16),
+                                label: Text(
+                                    '$estado: ${vehiculos.where((v) => (v['estado_semaforo'] ?? 'verde') == estado).length}')),
+                        ])));
+              }
+              final v = vehiculos[i - 1];
               final estado = v['estado'] as String? ?? 'desconocido';
               final color = switch (estado) {
                 'disponible' => AppTheme.secondary,
@@ -122,12 +179,17 @@ class _FotaTab extends ConsumerWidget {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: color.withAlpha(30),
-                    child: Icon(Icons.directions_car, color: color),
+                    child: Icon(Icons.directions_car,
+                        color: colorSemaforo(
+                            v['estado_semaforo'] as String? ?? 'verde')),
                   ),
+                  onTap: () => _editarVehiculo(context, ref, v),
                   title: Text('${v['placa']} - ${v['marca']} ${v['modelo']}'),
-                  subtitle: Text('Km: ${v['kilometraje_actual']} | Estado: $estado'),
+                  subtitle:
+                      Text('Km: ${v['kilometraje_actual']} | Estado: $estado'),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: color.withAlpha(30),
                       borderRadius: BorderRadius.circular(12),
@@ -160,14 +222,16 @@ class _ObservacionesTab extends ConsumerWidget {
           final conObs = jornadas
               .where((j) =>
                   j['observaciones'] != null &&
-                  (j['observaciones'] as String).isNotEmpty)
+                  (j['observaciones'] as String).isNotEmpty &&
+                  j['observaciones'] != 'Sin novedades')
               .toList();
           if (conObs.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.visibility_off_outlined, size: 64, color: Colors.grey),
+                  Icon(Icons.visibility_off_outlined,
+                      size: 64, color: Colors.grey),
                   SizedBox(height: 16),
                   Text('No hay observaciones registradas.'),
                 ],
@@ -179,23 +243,24 @@ class _ObservacionesTab extends ConsumerWidget {
             itemCount: conObs.length,
             itemBuilder: (_, i) {
               final j = conObs[i];
-              return AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Jornada #${j['id']} — Conductor #${j['conductor_id']}',
-                        style: AppTheme.labelLarge),
-                    const SizedBox(height: 4),
-                    Text(j['observaciones'] as String, style: AppTheme.bodySmall),
-                    if (j['accion_tipo'] != null) ...[
-                      const SizedBox(height: 4),
-                      Text('Acción: ${j['accion_tipo']}',
-                          style: AppTheme.bodySmall
-                              .copyWith(color: AppTheme.textSecondary)),
-                    ],
-                  ],
-                ),
-              );
+              return Card(
+                  child: ExpansionTile(
+                leading: Icon(Icons.circle,
+                    color: colorSemaforo(
+                        j['estado_semaforo'] as String? ?? 'verde')),
+                title:
+                    Text('Jornada #${j['id']} · Vehículo #${j['vehiculo_id']}'),
+                subtitle: Text(j['accion_tipo'] as String? ?? 'Jornada'),
+                children: [
+                  Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(children: [
+                        Text(j['observaciones'] as String),
+                        if (j['foto_observacion'] != null)
+                          FotoObservacion(url: j['foto_observacion'] as String),
+                      ]))
+                ],
+              ));
             },
           );
         },
@@ -217,7 +282,8 @@ class _MantenimientosTab extends ConsumerWidget {
       child: mantenimientosAsync.when(
         data: (items) {
           if (items.isEmpty) {
-            return const Center(child: Text('No hay mantenimientos registrados.'));
+            return const Center(
+                child: Text('No hay mantenimientos registrados.'));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -245,8 +311,7 @@ class _MantenimientosTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(estado,
-                        style:
-                            AppTheme.bodySmall.copyWith(color: colorEstado)),
+                        style: AppTheme.bodySmall.copyWith(color: colorEstado)),
                   ),
                 ),
               );
@@ -272,8 +337,8 @@ class _GpsTab extends StatelessWidget {
           Icon(Icons.gps_fixed, size: 80, color: AppTheme.textDisabled),
           const SizedBox(height: 16),
           Text('Integración futura de GPS',
-              style: AppTheme.titleMedium
-                  .copyWith(color: AppTheme.textSecondary)),
+              style:
+                  AppTheme.titleMedium.copyWith(color: AppTheme.textSecondary)),
           const SizedBox(height: 8),
           Text(
             'Este módulo permitirá el rastreo en tiempo real\nde los vehículos de la flota.',
@@ -309,4 +374,86 @@ Widget _buildList(
     loading: () => const Center(child: CircularProgressIndicator()),
     error: (e, _) => Center(child: Text('Error: $e')),
   );
+}
+
+Future<void> _editarVehiculo(
+    BuildContext context, WidgetRef ref, Map<String, dynamic> vehiculo) async {
+  const tipos = ['Camión Grúa', 'Camión de Carga', 'Camioneta', 'Coaster'];
+  String tipo = tipos.contains(vehiculo['tipo'])
+      ? vehiculo['tipo'] as String
+      : 'Camión de Carga';
+  final capacidad = TextEditingController(
+      text: vehiculo['capacidad_tanque_galones']?.toString() ?? '');
+  final form = GlobalKey<FormState>();
+  bool guardando = false;
+  await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+          builder: (ctx, update) => AlertDialog(
+                scrollable: true,
+                title: Text('Datos de ${vehiculo['placa']}'),
+                content: Form(
+                    key: form,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      DropdownButtonFormField<String>(
+                          initialValue: tipo,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                              labelText: 'Tipo de vehículo'),
+                          items: tipos
+                              .map((t) =>
+                                  DropdownMenuItem(value: t, child: Text(t)))
+                              .toList(),
+                          onChanged: (v) => tipo = v!),
+                      TextFormField(
+                          controller: capacidad,
+                          decoration: const InputDecoration(
+                              labelText: 'Capacidad del tanque (galones)',
+                              helperText:
+                                  'Necesaria para estimar el consumo por jornada',
+                              helperMaxLines: 2),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          validator: (v) => (v ?? '').isNotEmpty &&
+                                  (double.tryParse(v!.replaceAll(',', '.')) ==
+                                          null ||
+                                      double.parse(v.replaceAll(',', '.')) <= 0)
+                              ? 'Ingrese una capacidad mayor a cero'
+                              : null),
+                    ])),
+                actions: [
+                  TextButton(
+                      onPressed: guardando ? null : () => Navigator.pop(ctx),
+                      child: const Text('Cancelar')),
+                  FilledButton(
+                      onPressed: guardando
+                          ? null
+                          : () async {
+                              if (!form.currentState!.validate()) return;
+                              update(() => guardando = true);
+                              try {
+                                await ref
+                                    .read(transporteRepositoryProvider)
+                                    .actualizarDatosVehiculo(
+                                        vehiculo['id'] as int,
+                                        tipo,
+                                        double.tryParse(capacidad.text
+                                            .replaceAll(',', '.')));
+                                ref.invalidate(vehiculosListProvider);
+                                ref.invalidate(vehiculosDisponiblesProvider);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  update(() => guardando = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('No se pudo guardar: $e')));
+                                }
+                              }
+                            },
+                      child: Text(guardando ? 'Guardando...' : 'Guardar'))
+                ],
+              )));
+  capacidad.dispose();
 }

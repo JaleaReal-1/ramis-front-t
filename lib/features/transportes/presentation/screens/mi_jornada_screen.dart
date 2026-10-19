@@ -1,415 +1,378 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
-import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
-import 'package:sistema_ocs/features/transportes/domain/failures/transport_failure.dart';
-import 'package:sistema_ocs/features/transportes/providers/jornadas_provider.dart';
-import 'package:sistema_ocs/features/transportes/presentation/widgets/checklist_form.dart';
-import 'package:sistema_ocs/features/transportes/presentation/widgets/registro_accion_form.dart';
+import '../../domain/entities/jornada_transporte.dart';
+import '../../providers/jornadas_provider.dart';
+import '../widgets/checklist_form.dart';
+import '../widgets/observacion_fields.dart';
+import '../widgets/registro_accion_form.dart';
 
 class MiJornadaScreen extends ConsumerStatefulWidget {
-  const MiJornadaScreen({super.key});
-
+  const MiJornadaScreen({super.key, this.embedded = false});
+  final bool embedded;
   @override
   ConsumerState<MiJornadaScreen> createState() => _MiJornadaScreenState();
 }
 
 class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
-  double? _kilometrajeBase;
-  bool _loadingKm = false;
+  JornadaTransporte? _cerrada;
+
+  Future<void> _actualizar() async {
+    ref.invalidate(accionesRegistradasProvider);
+    ref.invalidate(vehiculosDisponiblesProvider);
+    final refreshed = ref.refresh(miJornadaProvider.future);
+    await refreshed;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final miJornadaAsync = ref.watch(miJornadaProvider);
-    final jornadaState = ref.watch(jornadaNotifierProvider);
-
-    // Use jornadaNotifier state if it has data, otherwise use miJornadaProvider
-    final JornadaTransporte? jornada = jornadaState.value?.vehiculoId != null
-        ? jornadaState.value
-        : miJornadaAsync.value;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mi Jornada')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(miJornadaProvider);
-        },
-        child: miJornadaAsync.when(
-          data: (_) => _buildBody(context, jornada),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingXL),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text('Error: $e',
-                      style:
-                          AppTheme.bodyMedium.copyWith(color: AppTheme.error),
-                      textAlign: TextAlign.center),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    final jornada = ref.watch(miJornadaProvider);
+    final body = jornada.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('No se pudo cargar la jornada: $e'),
+        TextButton(onPressed: _actualizar, child: const Text('Reintentar')),
+      ])),
+      data: (j) => RefreshIndicator(
+          onRefresh: _actualizar,
+          child: j == null ? _sinJornada() : _consola(j)),
     );
+    return widget.embedded
+        ? body
+        : Scaffold(
+            appBar:
+                AppBar(title: const Text('Seguimiento de la Jornada Actual')),
+            body: body);
   }
 
-  Widget _buildBody(BuildContext context, JornadaTransporte? jornada) {
-    if (jornada == null) {
-      return const RegistroAccionForm();
-    }
-
-    if (jornada.vehiculoId == null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+  Widget _sinJornada() => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
           children: [
-            const Text('No se pudo identificar el vehículo de la jornada.'),
-            TextButton(
-              onPressed: () => ref.invalidate(miJornadaProvider),
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      );
-    }
+            if (_cerrada case final cerrada?)
+              Card(
+                  child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Jornada finalizada',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                                'Recorrido: ${((cerrada.kmFinal ?? 0) - (cerrada.kmInicial ?? 0)).toStringAsFixed(1)} km'),
+                            Text(
+                                'Consumo: ${cerrada.galonesConsumidos?.toStringAsFixed(2) ?? "Sin estimación"} gal'),
+                            Text(
+                                'Rendimiento: ${cerrada.rendimientoKmGalon?.toStringAsFixed(2) ?? "Sin estimación"} km/gal'),
+                          ]))),
+            const Text('No tienes una jornada activa en este momento.'),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+                icon: const Icon(Icons.local_shipping),
+                label: const Text('Empezar a Conducir'),
+                onPressed: () async {
+                  await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                          builder: (ctx) => Scaffold(
+                              appBar:
+                                  AppBar(title: const Text('Abrir jornada')),
+                              body: RegistroAccionForm(
+                                  soloApertura: true,
+                                  onRegistered: () => Navigator.pop(ctx)))));
+                  if (mounted) {
+                    setState(() => _cerrada = null);
+                    await _actualizar();
+                  }
+                }),
+            const SizedBox(height: 12),
+            const Text(
+                'Registra el vehículo, el odómetro inicial, el combustible y el checklist para empezar tu jornada.'),
+          ]);
 
+  Widget _consola(JornadaTransporte j) {
+    final vehiculo = ref.watch(vehiculoJornadaProvider(j.vehiculoId!));
+    final v = vehiculo.value;
+    final color = v?['estado_semaforo'] as String? ?? j.estadoSemaforo;
+    final conductor = ref.watch(currentUserForTransportProvider).value;
+    final eventos = <_Evento>[
+      _Evento(
+          j.fechaInicio,
+          'Apertura de jornada',
+          'Odómetro inicial: ${j.kmInicial ?? "Pendiente"} km',
+          j.fotoObservacion,
+          j.estadoSemaforo),
+      for (final a in j.subAcciones)
+        _Evento(a.fechaInicio, a.accionTipo ?? 'Actividad', _resumen(a),
+            a.fotoObservacion, a.estadoSemaforo),
+      for (final i in j.incidencias)
+        _Evento(i.fecha, 'Observación en ruta', i.descripcion, i.fotoIncidencia,
+            i.severidad == 'grave' ? 'rojo' : 'amarillo'),
+    ].where((evento) {
+      if (evento.fecha == null) return false;
+      final fecha = _local(evento.fecha!);
+      final hoy = DateTime.now();
+      return fecha.year == hoy.year &&
+          fecha.month == hoy.month &&
+          fecha.day == hoy.day;
+    }).toList()
+      ..sort((a, b) => a.fecha!.compareTo(b.fecha!));
     return ListView(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      children: [
-        // ── Estado Card ──
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Jornada #${jornada.id}', style: AppTheme.titleLarge),
-                  _buildEstadoBadge(jornada.estado),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              AppInfoItem(
-                icon: Icons.local_shipping,
-                label: 'Vehículo ID',
-                value: '${jornada.vehiculoId}',
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              AppInfoItem(
-                icon: Icons.person,
-                label: 'Conductor ID',
-                value: '${jornada.conductorId}',
-              ),
-              if (jornada.fechaInicio != null) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                AppInfoItem(
-                  icon: Icons.access_time,
-                  label: 'Inicio',
-                  value: _formatDate(jornada.fechaInicio!),
-                ),
-              ],
-              if (jornada.fechaFin != null) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                AppInfoItem(
-                  icon: Icons.access_time_filled,
-                  label: 'Fin',
-                  value: _formatDate(jornada.fechaFin!),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        const SizedBox(height: AppTheme.spacingXL),
-
-        // ── Actions based on estado ──
-        if (jornada.estado == 'pendiente') ...[
-          SizedBox(
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () => _showChecklistSheet(jornada, 'inicial'),
-              icon: const Icon(Icons.checklist),
-              label: const Text('Checklist Inicial'),
-            ),
-          ),
-        ],
-
-        if (jornada.estado == 'en_curso') ...[
-          SizedBox(
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () => _showIncidenciaDialog(jornada.id),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warning,
-              ),
-              icon: const Icon(Icons.warning_amber_outlined),
-              label: const Text('Registrar Incidencia'),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: () => _showChecklistSheet(jornada, 'final'),
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Checklist Final'),
-            ),
-          ),
-        ],
-
-        if (jornada.estado == 'finalizada') ...[
-          AppCard(
-            backgroundColor: AppTheme.secondaryLight,
-            child: Row(
-              children: [
-                Icon(Icons.check_circle, color: AppTheme.secondary, size: 32),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: Text(
-                    'Jornada finalizada exitosamente.',
-                    style: AppTheme.titleMedium
-                        .copyWith(color: AppTheme.secondary),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-
-        if (jornada.estado == 'cancelada_por_averia') ...[
-          AppCard(
-            backgroundColor: const Color(0xFFFDE8E8),
-            child: Row(
-              children: [
-                Icon(Icons.cancel, color: AppTheme.error, size: 32),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: Text(
-                    'Jornada cancelada por avería detectada.',
-                    style: AppTheme.titleMedium.copyWith(color: AppTheme.error),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-
-        // ── Incidencias registradas ──
-        if (jornada.incidencias.isNotEmpty) ...[
-          const SizedBox(height: AppTheme.spacingXL),
-          Text('Incidencias Registradas', style: AppTheme.titleMedium),
-          const SizedBox(height: AppTheme.spacingS),
-          ...jornada.incidencias.map((inc) => Card(
-                child: ListTile(
-                  leading: Icon(_getIncidenciaIcon(inc.tipo),
-                      color: AppTheme.warning),
-                  title:
-                      Text(inc.tipo.toUpperCase(), style: AppTheme.labelLarge),
-                  subtitle: Text(inc.descripcion, style: AppTheme.bodySmall),
-                ),
-              )),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildEstadoBadge(String estado) {
-    Color color;
-    switch (estado) {
-      case 'pendiente':
-        color = AppTheme.warning;
-        break;
-      case 'en_curso':
-        color = AppTheme.primary;
-        break;
-      case 'finalizada':
-        color = AppTheme.secondary;
-        break;
-      case 'cancelada_por_averia':
-        color = AppTheme.error;
-        break;
-      default:
-        color = AppTheme.textDisabled;
-    }
-    return AppBadge(text: estado.replaceAll('_', ' '), color: color);
-  }
-
-  void _showChecklistSheet(JornadaTransporte jornada, String tipo) async {
-    if (jornada.vehiculoId == null) {
-      ref.invalidate(miJornadaProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo identificar el vehículo.')),
-      );
-      return;
-    }
-    // Load vehicle kilometraje
-    if (_kilometrajeBase == null && !_loadingKm) {
-      setState(() => _loadingKm = true);
-      try {
-        final repo = ref.read(transporteRepositoryProvider);
-        final vehiculo = await repo.obtenerVehiculo(jornada.vehiculoId!);
-        _kilometrajeBase =
-            (vehiculo['kilometraje_actual'] as num?)?.toDouble() ?? 0;
-      } catch (_) {
-        _kilometrajeBase = 0;
-      } finally {
-        if (mounted) setState(() => _loadingKm = false);
-      }
-    }
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => ChecklistForm(
-        jornadaId: jornada.id,
-        tipo: tipo,
-        kilometrajeBase: _kilometrajeBase ?? 0,
-        onSubmit: (request) async {
-          try {
-            if (tipo == 'inicial') {
-              await ref
-                  .read(jornadaNotifierProvider.notifier)
-                  .registrarChecklistInicial(jornada.id, request);
-            } else {
-              await ref
-                  .read(jornadaNotifierProvider.notifier)
-                  .registrarChecklistFinal(jornada.id, request);
-            }
-            if (!mounted) return;
-            Navigator.pop(context);
-            ref.invalidate(miJornadaProvider);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Checklist $tipo registrado exitosamente'),
-                backgroundColor: AppTheme.secondary,
-              ),
-            );
-          } on TransportFailure catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.message),
-                backgroundColor: AppTheme.error,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  void _showIncidenciaDialog(int jornadaId) {
-    String selectedTipo = 'falla';
-    final descController = TextEditingController();
-    final dialogFormKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Registrar Incidencia'),
-          content: Form(
-            key: dialogFormKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: selectedTipo,
-                  decoration: AppTheme.inputDecoration.copyWith(
-                    labelText: 'Tipo de Incidencia',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'falla', child: Text('Falla')),
-                    DropdownMenuItem(
-                        value: 'accidente', child: Text('Accidente')),
-                    DropdownMenuItem(
-                        value: 'combustible', child: Text('Combustible')),
-                  ],
-                  onChanged: (v) =>
-                      setDialogState(() => selectedTipo = v ?? 'falla'),
-                ),
-                const SizedBox(height: AppTheme.spacingL),
-                TextFormField(
-                  controller: descController,
-                  decoration: AppTheme.inputDecoration.copyWith(
-                    labelText: 'Descripción',
-                  ),
-                  maxLines: 3,
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Ingrese una descripción'
-                      : null,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!dialogFormKey.currentState!.validate()) return;
-                Navigator.pop(ctx);
-                try {
-                  await ref
-                      .read(jornadaNotifierProvider.notifier)
-                      .registrarIncidencia(
-                        jornadaId,
-                        IncidenciaRutaRequest(
-                          tipo: selectedTipo,
-                          descripcion: descController.text.trim(),
-                        ),
-                      );
-                  if (!mounted) return;
-                  ref.invalidate(miJornadaProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Incidencia registrada'),
-                      backgroundColor: AppTheme.secondary,
-                    ),
-                  );
-                } on TransportFailure catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.message),
-                      backgroundColor: AppTheme.error,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Registrar'),
-            ),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+              j.estado == 'en_curso'
+                  ? 'Mi jornada en curso'
+                  : 'Jornada asignada',
+              style: AppTheme.titleLarge),
+          const SizedBox(height: 12),
+          Card(
+              child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            v == null
+                                ? 'Vehículo #${j.vehiculoId}'
+                                : '${v['placa']} · ${v['tipo'] ?? v['modelo']}',
+                            style: AppTheme.titleMedium),
+                        if (vehiculo.hasError)
+                          TextButton(
+                              onPressed: () => ref.invalidate(
+                                  vehiculoJornadaProvider(j.vehiculoId!)),
+                              child:
+                                  const Text('Reintentar datos del vehículo')),
+                        Text(conductor == null
+                            ? 'Conductor #${j.conductorId}'
+                            : '${conductor.nombre} ${conductor.apellidos}'),
+                        Text('Inicio: ${_fecha(j.fechaInicio)}'),
+                        Text(
+                            'Odómetro inicial: ${j.kmInicial ?? "Pendiente"} km'),
+                        Wrap(
+                            spacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Icon(Icons.circle, color: colorSemaforo(color)),
+                              Text(switch (color) {
+                                'rojo' => 'Rojo · Vehículo inoperativo',
+                                'amarillo' =>
+                                  'Amarillo · Observaciones pendientes',
+                                _ => 'Verde · Buen estado'
+                              })
+                            ]),
+                        if (color == 'rojo')
+                          const Text(
+                              'La unidad está inoperativa. La jornada permanece abierta para registrar novedades y efectuar el cierre.',
+                              style: TextStyle(color: Colors.red)),
+                        if (v?['observaciones_pendientes'] != null)
+                          Text(v!['observaciones_pendientes'] as String),
+                      ]))),
+          if (j.estado == 'pendiente')
+            FilledButton(
+                onPressed: () => _checklist(j, 'inicial', v),
+                child: const Text('Checklist de apertura')),
+          if (j.estado == 'en_curso') ...[
+            const SizedBox(height: 16),
+            const Text('Acciones en ruta · Sin finalizar la jornada'),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+                onPressed: () => _reportar(j),
+                icon: const Icon(Icons.warning_amber),
+                label: const Text('Reportar Observación')),
+            OutlinedButton.icon(
+                onPressed: () async {
+                  await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                          builder: (ctx) => Scaffold(
+                              appBar: AppBar(
+                                  title: const Text('Sub-acción en ruta')),
+                              body: RegistroAccionForm(
+                                  jornada: j,
+                                  onRegistered: () => Navigator.pop(ctx)))));
+                  if (mounted) await _actualizar();
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Registrar Sub-Acción en Ruta')),
           ],
-        ),
-      ),
-    );
+          const SizedBox(height: 20),
+          Text('Línea de tiempo de hoy', style: AppTheme.titleMedium),
+          if (eventos.isEmpty)
+            const Text('Aún no hay actividades registradas hoy.'),
+          for (final e in eventos)
+            Card(
+                child: ExpansionTile(
+              leading:
+                  Icon(Icons.circle, size: 14, color: colorSemaforo(e.color)),
+              title: Text(e.titulo),
+              subtitle: Text(_fecha(e.fecha)),
+              children: [
+                Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(e.descripcion)),
+                if (e.foto != null) FotoObservacion(url: e.foto!)
+              ],
+            )),
+          if (j.estado == 'en_curso')
+            Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: FilledButton.icon(
+                    onPressed: () => _checklist(j, 'final', v),
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('Finalizar Jornada'))),
+        ]);
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-
-  IconData _getIncidenciaIcon(String tipo) {
-    switch (tipo) {
-      case 'falla':
-        return Icons.build_outlined;
-      case 'accidente':
-        return Icons.car_crash_outlined;
-      case 'combustible':
-        return Icons.local_gas_station_outlined;
-      default:
-        return Icons.warning_amber_outlined;
+  Future<void> _checklist(
+      JornadaTransporte j, String tipo, Map<String, dynamic>? v) async {
+    // Obtain the current odometer on every attempt; never fall back to zero on failure.
+    try {
+      final vehiculo = await ref
+          .read(transporteRepositoryProvider)
+          .obtenerVehiculo(j.vehiculoId!);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (ctx) => ChecklistForm(
+              jornadaId: j.id,
+              tipo: tipo,
+              kilometrajeBase:
+                  (vehiculo['kilometraje_actual'] as num).toDouble(),
+              kmInicial: j.kmInicial,
+              nivelInicial: j.nivelCombustible,
+              capacidadTanque:
+                  (vehiculo['capacidad_tanque_galones'] as num?)?.toDouble(),
+              galonesAbastecidos: j.subAcciones.fold<double>(
+                  0,
+                  (total, a) =>
+                      total +
+                      ((a.detallesCombustible?['galones'] as num?)
+                              ?.toDouble() ??
+                          0)),
+              onSubmit: (request) async {
+                try {
+                  final repo = ref.read(transporteRepositoryProvider);
+                  final resultado = tipo == 'final'
+                      ? await repo.registrarChecklistFinal(j.id, request)
+                      : await repo.registrarChecklistInicial(j.id, request);
+                  if (!mounted) return;
+                  if (tipo == 'final') setState(() => _cerrada = resultado);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  ref.invalidate(vehiculoJornadaProvider(j.vehiculoId!));
+                  await _actualizar();
+                } catch (e) {
+                  if (mounted) _error(e);
+                }
+              }));
+    } catch (e) {
+      if (mounted) _error(e);
     }
   }
+
+  Future<void> _reportar(JornadaTransporte j) async {
+    final form = GlobalKey<FormState>();
+    bool activa = false;
+    bool enviando = false;
+    String severidad = 'leve';
+    String descripcion = '';
+    String? foto;
+    await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+            builder: (ctx, update) => AlertDialog(
+                  scrollable: true,
+                  title: const Text('Reportar Observación en Ruta'),
+                  content: Form(
+                      key: form,
+                      child: ObservacionFields(
+                          onChanged: (valor, nivel, texto, url) {
+                        activa = valor;
+                        severidad = nivel;
+                        descripcion = texto;
+                        foto = url;
+                      })),
+                  actions: [
+                    TextButton(
+                        onPressed: enviando ? null : () => Navigator.pop(ctx),
+                        child: const Text('Cancelar')),
+                    FilledButton(
+                        onPressed: enviando
+                            ? null
+                            : () async {
+                                if (!form.currentState!.validate()) return;
+                                if (!activa) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Active las observaciones para registrar una novedad.')));
+                                  return;
+                                }
+                                update(() => enviando = true);
+                                try {
+                                  await ref
+                                      .read(transporteRepositoryProvider)
+                                      .registrarIncidencia(
+                                          j.id,
+                                          IncidenciaRutaRequest(
+                                              tipo: 'falla',
+                                              severidad: severidad,
+                                              fotoIncidencia: foto,
+                                              descripcion: descripcion.trim()));
+                                  if (!mounted) return;
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  ref.invalidate(
+                                      vehiculoJornadaProvider(j.vehiculoId!));
+                                  await _actualizar();
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    update(() => enviando = false);
+                                  }
+                                  if (mounted) _error(e);
+                                }
+                              },
+                        child: Text(enviando
+                            ? 'Guardando...'
+                            : 'Guardar Observación (continuar jornada)'))
+                  ],
+                )));
+  }
+
+  void _error(Object e) => ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No se pudo completar la operación: $e')));
 }
+
+class _Evento {
+  const _Evento(
+      this.fecha, this.titulo, this.descripcion, this.foto, this.color);
+  final DateTime? fecha;
+  final String titulo;
+  final String descripcion;
+  final String? foto;
+  final String color;
+}
+
+String _resumen(JornadaTransporte a) {
+  if (a.detallesCombustible case final c?) {
+    return 'Abastecimiento: ${c['galones']} gal · S/ ${c['costo'] ?? "Sin costo registrado"} · Vale ${c['comprobante'] ?? "—"}';
+  }
+  if (a.detallesGrua case final g?) {
+    return 'Horómetro de grúa: ${g['horometro_inicial']} → ${g['horometro_final']} h';
+  }
+  return a.observaciones ?? 'Sin novedades';
+}
+
+String _fecha(DateTime? f) {
+  if (f == null) return 'Pendiente';
+  final local = _local(f);
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+DateTime _local(DateTime f) => (f.isUtc
+        ? f
+        : DateTime.utc(f.year, f.month, f.day, f.hour, f.minute, f.second))
+    .toLocal();
