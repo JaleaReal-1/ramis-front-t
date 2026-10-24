@@ -81,7 +81,7 @@ class AuthService {
   // 🔹 LOGOUT
   // ===========================
   Future<void> logout() async {
-    await _storage.deleteAll();
+    await _storage.delete(key: 'jwt_token');
   }
 
   // ===========================

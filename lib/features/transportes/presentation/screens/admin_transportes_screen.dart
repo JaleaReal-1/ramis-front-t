@@ -1,5 +1,6 @@
 import '../../providers/jornadas_provider.dart';
 import '../widgets/observacion_fields.dart';
+import '../widgets/transport_notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -15,6 +16,7 @@ class AdminTransportesScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Gestión de Flota'),
+          actions: const [TransportNotificationBell()],
           bottom: const TabBar(
             isScrollable: true,
             tabs: [

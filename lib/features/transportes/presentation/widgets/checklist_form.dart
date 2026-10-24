@@ -1,4 +1,5 @@
 import 'observacion_fields.dart';
+import 'odometro_confirm.dart';
 import 'package:flutter/material.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
@@ -46,6 +47,7 @@ class _ChecklistFormState extends State<ChecklistForm> {
   bool _tieneObservaciones = false;
   String _severidad = 'leve';
   String? _foto;
+  List<String> _fotos = [];
   bool _conforme = true;
   bool _isSubmitting = false;
 
@@ -185,6 +187,7 @@ class _ChecklistFormState extends State<ChecklistForm> {
 
               // Observaciones
               ObservacionFields(
+                  onPhotosChanged: (fotos) => _fotos = fotos,
                   obligatoria: !_conforme,
                   onChanged: (activa, severidad, descripcion, foto) {
                     _tieneObservaciones = activa;
@@ -255,6 +258,10 @@ class _ChecklistFormState extends State<ChecklistForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final km = double.parse(_kmController.text.trim().replaceAll(',', '.'));
+    final evidencia = await confirmarOdometro(
+        context, km - (widget.kmInicial ?? widget.kilometrajeBase));
+    if (evidencia == null || !mounted) return;
 
     setState(() => _isSubmitting = true);
     try {
@@ -262,6 +269,9 @@ class _ChecklistFormState extends State<ChecklistForm> {
         tieneObservaciones: _tieneObservaciones,
         severidad: _severidad,
         fotoObservacion: _foto,
+        fotosObservacion: _fotos,
+        odometroEvidenciaUrl: evidencia['odometro_evidencia_url'],
+        odometroMotivo: evidencia['odometro_motivo'],
         tipo: widget.tipo,
         kilometraje:
             double.parse(_kmController.text.trim().replaceAll(',', '.')),

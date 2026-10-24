@@ -1,4 +1,5 @@
 import '../widgets/observacion_fields.dart';
+import '../widgets/transport_notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -29,6 +30,7 @@ class _ConductorJornadaScreenState
             ? 'Seguimiento de la Jornada Actual'
             : 'Historial de jornadas'),
         actions: [
+          const TransportNotificationBell(),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',

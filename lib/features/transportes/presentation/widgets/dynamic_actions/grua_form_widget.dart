@@ -76,7 +76,8 @@ class _GruaFormWidgetState extends State<GruaFormWidget> {
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) {
-            final numero = _numero(value ?? '');
+            if (value == null || value.trim().isEmpty) return null;
+            final numero = _numero(value);
             if (numero == null || numero <= 0) {
               return 'Ingrese un horómetro final válido';
             }

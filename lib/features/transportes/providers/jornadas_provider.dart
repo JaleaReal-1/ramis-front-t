@@ -9,12 +9,16 @@ import 'package:sistema_ocs/features/transportes/domain/failures/transport_failu
 // ── Repository ──────────────────────────────────────────────
 
 final transporteRepositoryProvider = Provider<TransporteRepositoryImpl>((ref) {
-  return TransporteRepositoryImpl(ref.watch(dioProvider));
+  final repo = TransporteRepositoryImpl(ref.watch(dioProvider));
+  repo.queue.start();
+  ref.onDispose(repo.queue.dispose);
+  return repo;
 });
 
 // ── Current User ────────────────────────────────────────────
 
 final currentUserForTransportProvider = FutureProvider((ref) async {
+  if (ref.watch(authNotifierProvider) != AuthStatus.authenticated) return null;
   final authService = ref.watch(authServiceProvider);
   return authService.getCurrentUser();
 });
@@ -63,7 +67,8 @@ final miJornadaProvider = FutureProvider<JornadaTransporte?>((ref) async {
   final activas = jornadas.where((j) =>
       j.conductorId == user.id &&
       j.jornadaPadreId == null &&
-      (j.estado == 'pendiente' || j.estado == 'en_curso') &&
+      (['pendiente', 'en_curso', 'pendiente_de_cierre', 'cerrada_por_sistema']
+          .contains(j.estado)) &&
       j.vehiculoId != null);
   if (activas.isEmpty) return null;
   return repo.obtenerJornada(activas.first.id);

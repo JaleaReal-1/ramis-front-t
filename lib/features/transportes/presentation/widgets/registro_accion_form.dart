@@ -1,5 +1,7 @@
 import 'vehiculo_selector.dart';
 import 'observacion_fields.dart';
+import 'odometro_confirm.dart';
+import '../../data/repositories/transporte_repository_impl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -114,6 +116,8 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
   bool _tieneObservaciones = false;
   String _severidad = 'leve';
   String? _foto;
+  List<String> _fotos = [];
+  double _kmBase = 0;
   bool _esGrua = false;
   bool _esLigero = false;
 
@@ -132,6 +136,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
     try {
       final repo = ref.read(transporteRepositoryProvider);
       final km = await repo.obtenerKilometrajeVehiculo(vehiculoId);
+      _kmBase = km;
       if (mounted && _vehiculoId == vehiculoId) {
         _kmController.text = km.toStringAsFixed(1);
       }
@@ -258,6 +263,7 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
               ],
               const SizedBox(height: AppTheme.spacingL),
               ObservacionFields(
+                onPhotosChanged: (fotos) => _fotos = fotos,
                 obligatoria: _accionSeleccionada ==
                     'Reporte de Incidencias u Observaciones',
                 onChanged: (activa, severidad, descripcion, foto) {
@@ -477,6 +483,16 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       children: [
         Text('Check List Flash (Obligatorio)',
             style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+        if (_checklistFlash.entries.any((e) =>
+            !e.value &&
+            RegExp('freno|direcci|Extintor|Documentos', caseSensitive: false)
+                .hasMatch(e.key)))
+          const Card(
+              color: Color(0xFFFFF3CD),
+              child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                      'Advertencia de seguridad: revise frenos/dirección, extintor y documentos. Se notificará a administración; la supervisión debe evaluar la operación.'))),
         const SizedBox(height: AppTheme.spacingS),
         Material(
           color: AppTheme.surface,
@@ -531,15 +547,13 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       return;
     }
 
-    if ((_accionSeleccionada == 'Empezar a Conducir' ||
-            _accionSeleccionada == 'Check List y/o V°B° de vehículos') &&
-        _checklistFlash.values.any((v) => !v) &&
-        !_tieneObservaciones) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Confirme los ítems del checklist o active observaciones y adjunte evidencia de la falla.')));
-      return;
-    }
+    final distancia = _accionSeleccionada == 'Operar Grúa'
+        ? 0.0
+        : (double.tryParse(_kmController.text.replaceAll(',', '.')) ??
+                _kmBase) -
+            _kmBase;
+    final evidencia = await confirmarOdometro(context, distancia);
+    if (evidencia == null || !mounted) return;
     setState(() => _isSubmitting = true);
     try {
       await ref.read(jornadaNotifierProvider.notifier).registrarAccion(
@@ -565,6 +579,9 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
               tieneObservaciones: _tieneObservaciones,
               severidad: _severidad,
               fotoObservacion: _foto,
+              fotosObservacion: _fotos,
+              odometroEvidenciaUrl: evidencia['odometro_evidencia_url'],
+              odometroMotivo: evidencia['odometro_motivo'],
               observaciones: _tieneObservaciones
                   ? _observacionesController.text.trim()
                   : 'Sin novedades',
@@ -588,6 +605,11 @@ class _RegistroAccionFormState extends ConsumerState<RegistroAccionForm> {
       ref.invalidate(vehiculosDisponiblesProvider);
       ref.invalidate(miJornadaProvider);
       ref.invalidate(accionesRegistradasProvider);
+      widget.onRegistered?.call();
+    } on TransportQueued catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
       widget.onRegistered?.call();
     } on TransportFailure catch (e) {
       if (!mounted) return;

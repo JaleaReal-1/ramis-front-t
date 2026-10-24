@@ -18,6 +18,7 @@ class VehiculoSelector extends StatelessWidget {
     final visibles = vehiculos
         .where((v) =>
             v['estado'] == 'disponible' ||
+            v['estado'] == 'en_ruta' ||
             v['id'] == vehiculoActivoId ||
             (v['estado_semaforo'] == 'rojo' && v['estado'] != 'inactivo'))
         .toList();
@@ -47,7 +48,7 @@ class VehiculoSelector extends StatelessWidget {
                     child: Text(
                         rojo
                             ? "${v['placa']} · No disponible por falla crítica"
-                            : "${v['placa']} - ${v['marca']} ${v['modelo']}",
+                            : "${v['placa']} - ${v['marca']} ${v['modelo']}${v['estado'] == 'en_ruta' ? ' · Relevo disponible' : ''}",
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis)),
               ]));

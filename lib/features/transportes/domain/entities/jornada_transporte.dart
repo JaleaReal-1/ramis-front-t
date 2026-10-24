@@ -31,6 +31,8 @@ class JornadaTransporte {
     this.detallesCocada,
     this.detallesTorque,
     this.detallesTrabajosExternos,
+    this.motivoCancelacion,
+    this.canceladoPorId,
   });
 
   final List<JornadaTransporte> subAcciones;
@@ -64,6 +66,8 @@ class JornadaTransporte {
   final Map<String, dynamic>? detallesCocada;
   final Map<String, dynamic>? detallesTorque;
   final Map<String, dynamic>? detallesTrabajosExternos;
+  final String? motivoCancelacion;
+  final int? canceladoPorId;
 }
 
 class Checklist {
@@ -246,6 +250,9 @@ class RegistroAccionRequest {
     this.detallesCocada,
     this.detallesTorque,
     this.detallesTrabajosExternos,
+    this.fotosObservacion = const [],
+    this.odometroEvidenciaUrl,
+    this.odometroMotivo,
   });
 
   final String accionTipo;
@@ -268,7 +275,15 @@ class RegistroAccionRequest {
   final String? severidad;
   final String? fotoObservacion;
 
+  final List<String> fotosObservacion;
+  final String? odometroEvidenciaUrl;
+  final String? odometroMotivo;
+
   Map<String, dynamic> toJson() => {
+        'fotos_observacion': fotosObservacion,
+        if (odometroEvidenciaUrl != null)
+          'odometro_evidencia_url': odometroEvidenciaUrl,
+        if (odometroMotivo != null) 'odometro_motivo': odometroMotivo,
         'tiene_observaciones': tieneObservaciones,
         if (tieneObservaciones) 'severidad': severidad,
         if (tieneObservaciones) 'foto_observacion': fotoObservacion,
@@ -305,6 +320,9 @@ class ChecklistRequest {
     this.severidad,
     this.fotoObservacion,
     this.tipo = 'inicial',
+    this.fotosObservacion = const [],
+    this.odometroEvidenciaUrl,
+    this.odometroMotivo,
   });
 
   final double kilometraje;
@@ -313,12 +331,19 @@ class ChecklistRequest {
   final bool conforme;
   final String? observaciones;
   final String tipo;
+  final List<String> fotosObservacion;
+  final String? odometroEvidenciaUrl;
+  final String? odometroMotivo;
 
   final bool tieneObservaciones;
   final String? severidad;
   final String? fotoObservacion;
 
   Map<String, dynamic> toJson() => {
+        'fotos_observacion': fotosObservacion,
+        if (odometroEvidenciaUrl != null)
+          'odometro_evidencia_url': odometroEvidenciaUrl,
+        if (odometroMotivo != null) 'odometro_motivo': odometroMotivo,
         'tiene_observaciones': tieneObservaciones,
         if (tieneObservaciones) 'severidad': severidad,
         if (tieneObservaciones) 'foto_observacion': fotoObservacion,
@@ -338,14 +363,18 @@ class IncidenciaRutaRequest {
     this.fotoIncidencia,
     required this.tipo,
     required this.descripcion,
+    this.fotos = const [],
   });
 
   final String? severidad;
   final String? fotoIncidencia;
   final String tipo;
   final String descripcion;
+  final List<String> fotos;
 
   Map<String, dynamic> toJson() => {
+        'fotos': fotos,
+        'fecha': DateTime.now().toUtc().toIso8601String(),
         if (severidad != null) 'severidad': severidad,
         if (fotoIncidencia != null) 'foto_incidencia': fotoIncidencia,
         'tipo': tipo,

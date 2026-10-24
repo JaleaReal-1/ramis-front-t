@@ -68,7 +68,7 @@ class _Repo extends TransporteRepositoryImpl {
   Future<IncidenciaRuta> registrarIncidencia(
       int id, IncidenciaRutaRequest request) async {
     reporte = request;
-    roja = request.severidad == 'grave';
+    roja = request.severidad == 'critica';
     return jornada.incidencias.first;
   }
 
@@ -194,7 +194,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Grave / Crítica · Vehículo inoperativo').last);
+    await tester.tap(find.text('Crítica · Vehículo inoperativo').last);
     await tester.pumpAndSettle();
     await tester.enterText(
         find.widgetWithText(TextFormField, 'Descripción detallada'),
@@ -204,7 +204,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar Observación (continuar jornada)'));
     await tester.pumpAndSettle();
-    expect(repo.reporte?.severidad, 'grave');
+    expect(repo.reporte?.severidad, 'critica');
     expect(repo.cerrada, isFalse);
     expect(find.text('Rojo · Vehículo inoperativo'), findsOneWidget);
     expect(find.text('Mi jornada en curso'), findsOneWidget);

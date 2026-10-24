@@ -6,11 +6,16 @@ import 'package:sistema_ocs/core/config/api_config.dart';
 
 typedef ElegirFoto = Future<XFile?> Function(ImageSource source);
 final elegirFotoProvider = Provider<ElegirFoto>((ref) => (source) =>
-    ImagePicker().pickImage(source: source, maxWidth: 1920, imageQuality: 85));
+    ImagePicker().pickImage(
+        source: source, maxWidth: 1920, maxHeight: 1920, imageQuality: 80));
 
 class ObservacionFields extends ConsumerStatefulWidget {
   const ObservacionFields(
-      {super.key, required this.onChanged, this.obligatoria = false});
+      {super.key,
+      required this.onChanged,
+      this.obligatoria = false,
+      this.onPhotosChanged});
+  final ValueChanged<List<String>>? onPhotosChanged;
   final void Function(
           bool activa, String severidad, String descripcion, String? foto)
       onChanged;
@@ -25,9 +30,15 @@ class _ObservacionFieldsState extends ConsumerState<ObservacionFields> {
   String _severidad = 'leve';
   String _descripcion = '';
   String? _foto;
+  final List<String> _fotos = [];
   bool get activa => _activa || widget.obligatoria;
-  void _notify() => widget.onChanged(activa, _severidad, _descripcion, _foto);
+  void _notify() {
+    widget.onChanged(activa, _severidad, _descripcion, _foto);
+    widget.onPhotosChanged?.call(List.of(_fotos));
+  }
+
   Future<void> _pick(ImageSource source) async {
+    if (_fotos.length >= 5) return;
     try {
       final image = await ref.read(elegirFotoProvider)(source);
       if (image == null || !mounted) return;
@@ -37,7 +48,10 @@ class _ObservacionFieldsState extends ConsumerState<ObservacionFields> {
           .read(transporteRepositoryProvider)
           .subirFoto(bytes, image.name);
       if (!mounted) return;
-      setState(() => _foto = url);
+      setState(() {
+        _foto = url;
+        _fotos.add(url);
+      });
       _notify();
     } catch (e) {
       if (mounted) {
@@ -75,11 +89,13 @@ class _ObservacionFieldsState extends ConsumerState<ObservacionFields> {
                         items: const [
                           DropdownMenuItem(
                               value: 'leve',
-                              child: Text('Leve · Alerta amarilla')),
+                              child: Text('Leve · Verde con novedad')),
                           DropdownMenuItem(
-                              value: 'grave',
-                              child: Text(
-                                  'Grave / Crítica · Vehículo inoperativo',
+                              value: 'moderada',
+                              child: Text('Moderada · Atención amarilla')),
+                          DropdownMenuItem(
+                              value: 'critica',
+                              child: Text('Crítica · Vehículo inoperativo',
                                   overflow: TextOverflow.ellipsis))
                         ],
                         onChanged: (v) {
@@ -127,13 +143,23 @@ class _ObservacionFieldsState extends ConsumerState<ObservacionFields> {
                                       onPressed: _cargando
                                           ? null
                                           : () {
-                                              setState(() => _foto = null);
+                                              setState(() {
+                                                _fotos.clear();
+                                                _foto = null;
+                                              });
                                               _notify();
                                             },
                                       icon: const Icon(Icons.delete_outline)),
                               ]),
                               if (_cargando) const LinearProgressIndicator(),
-                              if (_foto != null) FotoObservacion(url: _foto!),
+                              Text(
+                                  '${_fotos.length}/5 fotografías · Máximo 10 MB por archivo'),
+                              for (final foto in _fotos)
+                                foto.startsWith('local://')
+                                    ? const Chip(
+                                        label: Text(
+                                            'Foto guardada · Pendiente de sincronizar'))
+                                    : FotoObservacion(url: foto),
                               if (field.hasError)
                                 Text(field.errorText!,
                                     style: TextStyle(

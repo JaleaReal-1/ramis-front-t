@@ -6,6 +6,8 @@ import '../../providers/jornadas_provider.dart';
 import '../widgets/checklist_form.dart';
 import '../widgets/observacion_fields.dart';
 import '../widgets/registro_accion_form.dart';
+import '../../data/repositories/transporte_repository_impl.dart';
+import '../widgets/subaccion_controls.dart';
 
 class MiJornadaScreen extends ConsumerStatefulWidget {
   const MiJornadaScreen({super.key, this.embedded = false});
@@ -107,8 +109,16 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
         _Evento(a.fechaInicio, a.accionTipo ?? 'Actividad', _resumen(a),
             a.fotoObservacion, a.estadoSemaforo),
       for (final i in j.incidencias)
-        _Evento(i.fecha, 'Observación en ruta', i.descripcion, i.fotoIncidencia,
-            i.severidad == 'grave' ? 'rojo' : 'amarillo'),
+        _Evento(
+            i.fecha,
+            'Observación en ruta',
+            i.descripcion,
+            i.fotoIncidencia,
+            i.severidad == 'critica' || i.severidad == 'grave'
+                ? 'rojo'
+                : i.severidad == 'moderada'
+                    ? 'amarillo'
+                    : 'verde'),
     ].where((evento) {
       if (evento.fecha == null) return false;
       final fecha = _local(evento.fecha!);
@@ -122,6 +132,16 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20),
         children: [
+          if (['pendiente_de_cierre', 'cerrada_por_sistema'].contains(j.estado))
+            const Card(
+                color: Color(0xFFFFF3CD),
+                child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                        'Odómetro pendiente de cierre. Regularice esta jornada para poder tomar otro vehículo.'))),
+          for (final sub in j.subAcciones)
+            if (sub.estado == 'en_curso' || sub.estado == 'cancelada')
+              SubaccionControls(subaccion: sub, onChanged: _actualizar),
           Text(
               j.estado == 'en_curso'
                   ? 'Mi jornada en curso'
@@ -216,7 +236,8 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
                 if (e.foto != null) FotoObservacion(url: e.foto!)
               ],
             )),
-          if (j.estado == 'en_curso')
+          if (['en_curso', 'pendiente_de_cierre', 'cerrada_por_sistema']
+              .contains(j.estado))
             Padding(
                 padding: const EdgeInsets.only(top: 20),
                 child: FilledButton.icon(
@@ -241,8 +262,10 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
           builder: (ctx) => ChecklistForm(
               jornadaId: j.id,
               tipo: tipo,
-              kilometrajeBase:
-                  (vehiculo['kilometraje_actual'] as num).toDouble(),
+              kilometrajeBase: ['pendiente_de_cierre', 'cerrada_por_sistema']
+                      .contains(j.estado)
+                  ? (j.kmInicial ?? 0)
+                  : (vehiculo['kilometraje_actual'] as num).toDouble(),
               kmInicial: j.kmInicial,
               nivelInicial: j.nivelCombustible,
               capacidadTanque:
@@ -281,6 +304,7 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
     String severidad = 'leve';
     String descripcion = '';
     String? foto;
+    List<String> fotos = [];
     await showDialog<void>(
         context: context,
         builder: (ctx) => StatefulBuilder(
@@ -290,12 +314,13 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
                   content: Form(
                       key: form,
                       child: ObservacionFields(
+                          onPhotosChanged: (value) => fotos = value,
                           onChanged: (valor, nivel, texto, url) {
-                        activa = valor;
-                        severidad = nivel;
-                        descripcion = texto;
-                        foto = url;
-                      })),
+                            activa = valor;
+                            severidad = nivel;
+                            descripcion = texto;
+                            foto = url;
+                          })),
                   actions: [
                     TextButton(
                         onPressed: enviando ? null : () => Navigator.pop(ctx),
@@ -322,12 +347,19 @@ class _MiJornadaScreenState extends ConsumerState<MiJornadaScreen> {
                                               tipo: 'falla',
                                               severidad: severidad,
                                               fotoIncidencia: foto,
+                                              fotos: fotos,
                                               descripcion: descripcion.trim()));
                                   if (!mounted) return;
                                   if (ctx.mounted) Navigator.pop(ctx);
                                   ref.invalidate(
                                       vehiculoJornadaProvider(j.vehiculoId!));
                                   await _actualizar();
+                                } on TransportQueued catch (e) {
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())));
+                                  }
                                 } catch (e) {
                                   if (ctx.mounted) {
                                     update(() => enviando = false);

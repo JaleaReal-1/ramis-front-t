@@ -1,19 +1,29 @@
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
+import '../transport_queue.dart';
 import 'package:sistema_ocs/core/config/api_config.dart';
 import 'package:sistema_ocs/features/transportes/data/models/jornada_transporte_model.dart';
 import 'package:sistema_ocs/features/transportes/domain/entities/jornada_transporte.dart';
 import 'package:sistema_ocs/features/transportes/domain/failures/transport_failure.dart';
 
 class TransporteRepositoryImpl {
-  TransporteRepositoryImpl(this._dio);
+  TransporteRepositoryImpl(this._dio) : queue = TransportQueue(_dio);
+  final TransportQueue queue;
 
   final Dio _dio;
   Future<String> subirFoto(List<int> bytes, String nombre) async {
-    final res = await _request(() => _dio.post(
-        '${ApiConfig.baseUrl}/api/jornadas/fotos',
-        data: FormData.fromMap(
-            {'file': MultipartFile.fromBytes(bytes, filename: nombre)})));
-    return _map(res.data)['url'] as String;
+    if (bytes.length > 10 * 1024 * 1024) {
+      throw const TransportFailure(message: 'Máximo 10 MB por archivo.');
+    }
+    try {
+      final res = await _dio.post('${ApiConfig.baseUrl}/api/jornadas/fotos',
+          data: FormData.fromMap(
+              {'file': MultipartFile.fromBytes(bytes, filename: nombre)}));
+      return _map(res.data)['url'] as String;
+    } on DioException catch (e) {
+      if (!_offline(e)) throw _failureFromDio(e);
+      return queue.keepImage(bytes, nombre);
+    }
   }
 
   // ── Jornadas ────────────────────────────────────────────
@@ -27,12 +37,41 @@ class TransporteRepositoryImpl {
 
   Future<JornadaTransporte> registrarAccion(
       RegistroAccionRequest request) async {
-    final res = await _request(
-      () => _dio.post(
-          '${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/registro-accion',
-          data: request.toJson()),
-    );
-    return JornadaTransporteModel.fromJson(_map(res.data));
+    if (request.accionTipo == 'Reporte de Incidencias u Observaciones' &&
+        request.jornadaPadreId != null) {
+      await registrarIncidencia(
+          request.jornadaPadreId!,
+          IncidenciaRutaRequest(
+              tipo: 'falla',
+              descripcion: request.observaciones,
+              severidad: request.severidad,
+              fotoIncidencia: request.fotoObservacion,
+              fotos: request.fotosObservacion));
+      return obtenerJornada(request.jornadaPadreId!);
+    }
+    final body = request.toJson()..['solicitud_id'] = const Uuid().v4();
+    final path =
+        '${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/registro-accion';
+    if (request.accionTipo == 'Reporte de Incidencias u Observaciones' &&
+        body.toString().contains('local://')) {
+      await queue.add(path, body);
+      throw const TransportQueued();
+    }
+    try {
+      final res = await _request(
+        () => _dio.post(
+            '${ApiConfig.baseUrl}${ApiConfig.endpointJornadas}/registro-accion',
+            data: body),
+      );
+      return JornadaTransporteModel.fromJson(_map(res.data));
+    } on TransportFailure catch (e) {
+      if (request.accionTipo != 'Reporte de Incidencias u Observaciones' ||
+          e.statusCode != null) {
+        rethrow;
+      }
+      await queue.add(path, body);
+      throw const TransportQueued();
+    }
   }
 
   Future<double> obtenerKilometrajeVehiculo(int vehiculoId) async {
@@ -91,12 +130,20 @@ class TransporteRepositoryImpl {
     int jornadaId,
     IncidenciaRutaRequest request,
   ) async {
-    final res = await _request(
-      () => _dio.post(
-        ApiConfig.getIncidenciasJornadaUrl(jornadaId),
-        data: request.toJson(),
-      ),
-    );
+    final body = request.toJson()..['solicitud_id'] = const Uuid().v4();
+    final path = ApiConfig.getIncidenciasJornadaUrl(jornadaId);
+    if (body.toString().contains('local://')) {
+      await queue.add(path, body);
+      throw const TransportQueued();
+    }
+    late Response<dynamic> res;
+    try {
+      res = await _dio.post(path, data: body);
+    } on DioException catch (e) {
+      if (!_offline(e)) throw _failureFromDio(e);
+      await queue.add(path, body);
+      throw const TransportQueued();
+    }
     return IncidenciaRutaModel.fromJson(_map(res.data));
   }
 
@@ -177,13 +224,58 @@ class TransporteRepositoryImpl {
   }
 
   // ── Helpers ─────────────────────────────────────────────
+  Future<dynamic> getV3(String path) async =>
+      (await _request(() => _dio.get(path))).data;
+  Future<dynamic> postV3(String path, Map<String, dynamic> body) async =>
+      (await _request(() => _dio.post(path, data: body))).data;
+  Future<void> cerrarSubaccion(int id, Map<String, dynamic> body) async {
+    await postV3('/api/jornadas/$id/cerrar', body);
+  }
+
+  Future<void> cancelarSubaccion(int id, String motivo) async {
+    await postV3('/api/jornadas/$id/cancelar', {'motivo': motivo});
+  }
+
+  Future<List<int>> reportePdf(
+      int id, String estado, String? desde, String? hasta) async {
+    final res = await _request(() => _dio.get('/api/vehiculos/$id/reporte-pdf',
+        queryParameters: {
+          'estado': estado,
+          if (desde != null) 'desde': desde,
+          if (hasta != null) 'hasta': hasta
+        },
+        options: Options(responseType: ResponseType.bytes)));
+    return List<int>.from(res.data as List);
+  }
+
+  bool _offline(DioException e) =>
+      e.response == null && e.type != DioExceptionType.cancel;
 
   Future<Response<dynamic>> _request(
     Future<Response<dynamic>> Function() call,
   ) async {
     try {
-      return await call();
+      final response = await call();
+      if (response.requestOptions.method == 'GET') {
+        try {
+          await queue.cache(
+              response.requestOptions.uri.toString(), response.data);
+        } catch (_) {}
+      }
+      return response;
     } on DioException catch (error) {
+      if (_offline(error) && error.requestOptions.method == 'GET') {
+        try {
+          final previous =
+              await queue.cached(error.requestOptions.uri.toString());
+          if (previous != null) {
+            return Response(
+                data: previous,
+                requestOptions: error.requestOptions,
+                statusCode: 200);
+          }
+        } catch (_) {}
+      }
       throw _failureFromDio(error);
     } on FormatException catch (e) {
       throw TransportFailure(message: 'Respuesta inválida: $e');
@@ -221,4 +313,11 @@ class TransporteRepositoryImpl {
       message: 'Respuesta del servidor con formato inválido.',
     );
   }
+}
+
+class TransportQueued implements Exception {
+  const TransportQueued();
+  @override
+  String toString() =>
+      'Reporte guardado en el dispositivo. Se enviará automáticamente al recuperar conexión.';
 }

@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/data/services/auth_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sistema_ocs/data/network/dio_client.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading }
 
@@ -19,13 +21,13 @@ class AuthNotifier extends StateNotifier<AuthStatus> {
     try {
       // ✅ Usa el parámetro 'email'
       final token = await _authService.login(email, password);
-      
+
       await _storage.write(key: 'jwt_token', value: token.accessToken);
-      
+
       state = AuthStatus.authenticated;
     } catch (e) {
       state = AuthStatus.unauthenticated;
-      rethrow; 
+      rethrow;
     }
   }
 
@@ -40,9 +42,13 @@ class AuthNotifier extends StateNotifier<AuthStatus> {
 
   Future<void> logout() async {
     try {
+      if (Firebase.apps.isNotEmpty)
+        await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
+    try {
       await _authService.logout();
     } catch (_) {}
-    await _storage.deleteAll();
+    await _storage.delete(key: 'jwt_token');
     state = AuthStatus.unauthenticated;
   }
 }
@@ -52,7 +58,7 @@ final secureStorageProvider = Provider((ref) => const FlutterSecureStorage());
 
 final authServiceProvider = Provider((ref) {
   // Aquí está el truco: le pasamos el Dio que ya tiene el Interceptor
-  final dio = ref.watch(dioProvider); 
+  final dio = ref.watch(dioProvider);
   return AuthService(dio);
 });
 

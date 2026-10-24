@@ -33,12 +33,16 @@ class JornadaTransporteModel extends JornadaTransporte {
     super.detallesCocada,
     super.detallesTorque,
     super.detallesTrabajosExternos,
+    super.motivoCancelacion,
+    super.canceladoPorId,
   });
 
   factory JornadaTransporteModel.fromJson(Map<String, dynamic> json) {
     return JornadaTransporteModel(
       subAcciones: _list(json['sub_acciones'], JornadaTransporteModel.fromJson),
       estadoSemaforo: json['estado_semaforo'] as String? ?? 'verde',
+      motivoCancelacion: json['motivo_cancelacion'] as String?,
+      canceladoPorId: (json['cancelado_por_id'] as num?)?.toInt(),
       fotoObservacion: json['foto_observacion'] as String?,
       jornadaPadreId: (json['jornada_padre_id'] as num?)?.toInt(),
       galonesConsumidos: (json['galones_consumidos'] as num?)?.toDouble(),
