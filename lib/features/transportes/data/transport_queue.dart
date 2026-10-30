@@ -57,8 +57,29 @@ class TransportQueue {
         await storage.write(key: key, value: jsonEncode(data));
       });
 
+  Future<void> addMultipart(String path, Map<String, dynamic> fields,
+          List<int> bytes, String name) =>
+      _locked(() async {
+        final key = await _key();
+        final data = await _load(key);
+        (data['jobs'] as List).add({
+          'path': path,
+          'body': fields,
+          'multipart': {'bytes': base64Encode(bytes), 'name': name}
+        });
+        await storage.write(key: key, value: jsonEncode(data));
+      });
+
   Future<int> pending() async =>
       ((await _load(await _key()))['jobs'] as List).length;
+
+  Future<int> pendingDocuments(String entidad, int id) async {
+    final jobs = (await _load(await _key()))['jobs'] as List;
+    return jobs
+        .where(
+            (job) => job['path'] == '/api/transportes/documentos/$entidad/$id')
+        .length;
+  }
 
   Future<void> cache(String path, dynamic value) async {
     final key = '${await _key()}:cache:$path';
@@ -134,7 +155,16 @@ class TransportQueue {
 
           // Si cambió la sesión, conservar el trabajo para su propietario.
           if (await _key() != key) return;
-          await dio.post(job['path'] as String, data: replace(job['body']));
+          final attachment = job['multipart'] as Map?;
+          final body = attachment == null
+              ? replace(job['body'])
+              : FormData.fromMap({
+                  ...Map<String, dynamic>.from(job['body'] as Map),
+                  'file': MultipartFile.fromBytes(
+                      base64Decode(attachment['bytes'] as String),
+                      filename: attachment['name'] as String),
+                });
+          await dio.post(job['path'] as String, data: body);
           jobs.removeAt(0);
           for (final id in references) {
             images.remove(id);

@@ -95,7 +95,7 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
     final controller = TextEditingController(text: inicial);
     final value = await showDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => _FullPage(
                 title: Text(titulo),
                 content:
                     TextField(controller: controller, obscureText: secreto),
@@ -195,11 +195,11 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
                             if (!context.mounted) return;
                             await showDialog<void>(
                                 context: context,
-                                builder: (ctx) => AlertDialog(
+                                builder: (ctx) => _FullPage(
                                     title:
                                         const Text('Documentos de conductores'),
                                     content: SizedBox(
-                                        width: 500,
+                                        width: double.infinity,
                                         child: ListView(
                                             shrinkWrap: true,
                                             children: [
@@ -265,10 +265,10 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
                             if (!context.mounted) return;
                             await showDialog<void>(
                                 context: context,
-                                builder: (ctx) => AlertDialog(
+                                builder: (ctx) => _FullPage(
                                     title: const Text('Bitácora de auditoría'),
                                     content: SizedBox(
-                                        width: 600,
+                                        width: double.infinity,
                                         child: ListView(
                                             shrinkWrap: true,
                                             children: [
@@ -366,10 +366,10 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
         exportBackgroundColor: Colors.white);
     final bytes = await showDialog<Uint8List>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => _FullPage(
                 title: const Text('Firma autenticada del administrador'),
                 content: SizedBox(
-                    width: 450,
+                    width: double.infinity,
                     height: 200,
                     child: Signature(
                         controller: controller, backgroundColor: Colors.white)),
@@ -401,7 +401,7 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
     if (!mounted) return;
     await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => _FullPage(
             title: Text('Hoja de vida · ${vehiculo['placa']}'),
             content: Column(mainAxisSize: MainAxisSize.min, children: [
               Text(
@@ -457,10 +457,10 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
     if (!mounted) return;
     await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => _FullPage(
             title: const Text('Documentación y versiones'),
             content: SizedBox(
-                width: 500,
+                width: double.infinity,
                 child: ListView(shrinkWrap: true, children: [
                   for (final doc in vigencias)
                     ListTile(
@@ -591,10 +591,10 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
     if (!mounted) return;
     await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => _FullPage(
             title: const Text('Observaciones del vehículo'),
             content: SizedBox(
-                width: 500,
+                width: double.infinity,
                 child: ListView(shrinkWrap: true, children: [
                   for (final obs in lista)
                     ListTile(
@@ -629,4 +629,27 @@ class _TransportesV3ScreenState extends ConsumerState<TransportesV3Screen> {
                             : null)
                 ]))));
   }
+}
+
+class _FullPage extends StatelessWidget {
+  const _FullPage(
+      {required this.title, required this.content, this.actions = const []});
+  final Widget title, content;
+  final List<Widget> actions;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(title: title),
+      body: SafeArea(
+          child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16), child: content)),
+      bottomNavigationBar: actions.isEmpty
+          ? null
+          : SafeArea(
+              child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: actions))));
 }

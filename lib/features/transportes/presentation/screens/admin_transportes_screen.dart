@@ -1,19 +1,28 @@
 import '../../providers/jornadas_provider.dart';
 import '../widgets/observacion_fields.dart';
 import '../widgets/transport_notification_bell.dart';
+import 'conductores_screen.dart';
+import 'vehiculo_detalle_screen.dart';
+import '../../../dashboard/custom_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
 import 'package:sistema_ocs/features/transportes/providers/admin_transportes_provider.dart';
 
 class AdminTransportesScreen extends ConsumerWidget {
-  const AdminTransportesScreen({super.key});
+  const AdminTransportesScreen({super.key, this.initialIndex = 0})
+      : assert(initialIndex >= 0 && initialIndex < 6);
+  final int initialIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
+      initialIndex: initialIndex,
       child: Scaffold(
+        drawer: CustomDrawer(
+            onMenuItemTap: (_) =>
+                Navigator.of(context).popUntil((route) => route.isFirst)),
         appBar: AppBar(
           title: const Text('Gestión de Flota'),
           actions: const [TransportNotificationBell()],
@@ -25,6 +34,7 @@ class AdminTransportesScreen extends ConsumerWidget {
               Tab(icon: Icon(Icons.visibility), text: 'Observaciones'),
               Tab(icon: Icon(Icons.build), text: 'Mantenimientos'),
               Tab(icon: Icon(Icons.gps_fixed), text: 'GPS'),
+              Tab(icon: Icon(Icons.people_alt), text: 'Conductores'),
             ],
           ),
         ),
@@ -35,6 +45,7 @@ class AdminTransportesScreen extends ConsumerWidget {
             _ObservacionesTab(),
             _MantenimientosTab(),
             _GpsTab(),
+            ConductoresScreen(embedded: true),
           ],
         ),
       ),
@@ -148,9 +159,6 @@ class _FotaTab extends ConsumerWidget {
       onRefresh: () async => ref.invalidate(vehiculosListProvider),
       child: vehiculosAsync.when(
         data: (vehiculos) {
-          if (vehiculos.isEmpty) {
-            return const Center(child: Text('No hay vehículos registrados.'));
-          }
           return ListView.builder(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             itemCount: vehiculos.length + 1,
@@ -160,6 +168,12 @@ class _FotaTab extends ConsumerWidget {
                     child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Wrap(spacing: 16, children: [
+                          FilledButton.icon(
+                              onPressed: () => mostrarAltaVehiculo(context),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Alta Rápida de Vehículo')),
+                          if (vehiculos.isEmpty)
+                            const Text('No hay vehículos registrados.'),
                           for (final estado in ['verde', 'amarillo', 'rojo'])
                             Chip(
                                 avatar: Icon(Icons.circle,
@@ -185,20 +199,21 @@ class _FotaTab extends ConsumerWidget {
                         color: colorSemaforo(
                             v['estado_semaforo'] as String? ?? 'verde')),
                   ),
-                  onTap: () => _editarVehiculo(context, ref, v),
+                  onTap: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => VehiculoDetalleScreen(vehiculo: v))),
                   title: Text('${v['placa']} - ${v['marca']} ${v['modelo']}'),
                   subtitle:
                       Text('Km: ${v['kilometraje_actual']} | Estado: $estado'),
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withAlpha(30),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(estado,
-                        style: AppTheme.bodySmall.copyWith(color: color)),
-                  ),
+                  trailing: PopupMenuButton<String>(
+                      tooltip: 'Opciones del vehículo',
+                      onSelected: (_) => _editarVehiculo(context, ref, v),
+                      itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: 'tanque',
+                                child: Text('Configurar tipo y tanque'))
+                          ]),
                 ),
               );
             },

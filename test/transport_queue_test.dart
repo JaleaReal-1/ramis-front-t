@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sistema_ocs/features/transportes/data/transport_queue.dart';
+import 'package:sistema_ocs/features/transportes/data/repositories/transporte_repository_impl.dart';
 
 class _Adapter implements HttpClientAdapter {
   final bodies = <Map>[];
@@ -22,7 +23,13 @@ class _Adapter implements HttpClientAdapter {
             Headers.contentTypeHeader: ['application/json']
           });
     }
-    bodies.add(Map.from(options.data as Map));
+    if (options.data is FormData) {
+      final form = options.data as FormData;
+      bodies.add(
+          {...Map.fromEntries(form.fields), '_file_count': form.files.length});
+    } else {
+      bodies.add(Map.from(options.data as Map));
+    }
     return ResponseBody.fromString('{}', 201, headers: {
       Headers.contentTypeHeader: ['application/json']
     });
@@ -76,5 +83,34 @@ void main() {
     expect(adapter.bodies, isEmpty);
     await storage.write(key: 'jwt_token', value: token('conductor1'));
     expect(await queue.pending(), 1);
+  });
+  test(
+      'Documento multipart sobrevive a un reinicio y conserva categoría y solicitud',
+      () async {
+    FlutterSecureStorage.setMockInitialValues(
+        {'jwt_token': token('conductor1')});
+    final adapter = _Adapter()..fail = true;
+    final dio = Dio(BaseOptions(baseUrl: 'https://test.ramis.pe'))
+      ..httpClientAdapter = adapter;
+    final repo = TransporteRepositoryImpl(dio);
+    final enviado = await repo.subirDocumento(
+        'conductor',
+        7,
+        {
+          'tipo': 'licencia',
+          'fecha_vencimiento': '2027-01-01',
+          'licencia_categoria': 'A-IIb'
+        },
+        [1, 2, 3],
+        'licencia.png');
+    expect(enviado, isFalse);
+    expect(await repo.queue.pendingDocuments('conductor', 7), 1);
+    adapter.fail = false;
+    final reiniciada = TransportQueue(dio);
+    await reiniciada.flush();
+    expect(await reiniciada.pendingDocuments('conductor', 7), 0);
+    expect(adapter.bodies.single['licencia_categoria'], 'A-IIb');
+    expect(adapter.bodies.single['solicitud_id'], isNotEmpty);
+    expect(adapter.bodies.single['_file_count'], 1);
   });
 }

@@ -39,7 +39,7 @@ class OCSApp extends ConsumerWidget {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Sistema OCS',
+      title: 'Ramis Transportes',
       theme: AppTheme.lightTheme,
       home: homeScreen,
     );

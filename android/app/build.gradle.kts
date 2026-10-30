@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.sistema_ocs"
+        applicationId = "com.ramissac.transportes"
         // Asegúrate de que este valor esté HARCODEADO
         minSdk = localMinSdkVersion // <<-- EL CAMBIO CRÍTICO
         targetSdk = flutter.targetSdkVersion

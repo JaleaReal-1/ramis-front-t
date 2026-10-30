@@ -19,7 +19,7 @@ class ApiConfig {
   /// Opción LAN (Wi-Fi/red local): apunta a la IP de la PC donde corre el
   /// backend. El celular debe estar en la misma red. Usar `ipconfig` para
   /// verificar la IP actual de la PC (ej. 192.168.18.48).
-  static const String baseUrl = 'http://192.168.18.60:8000';
+  static const String baseUrl = 'https://18.230.184.228.sslip.io';
 
   /// Timeout para conexiones HTTP (segundos)
   static const int connectTimeout = 15;

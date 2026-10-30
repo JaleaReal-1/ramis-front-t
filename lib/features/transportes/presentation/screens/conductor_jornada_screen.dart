@@ -1,5 +1,7 @@
 import '../widgets/observacion_fields.dart';
 import '../widgets/transport_notification_bell.dart';
+import 'documentos_screen.dart';
+import '../../../dashboard/custom_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sistema_ocs/core/theme/app_theme.dart';
@@ -11,7 +13,9 @@ import 'package:sistema_ocs/features/login/login_provider.dart';
 import 'package:sistema_ocs/features/login/login_screen.dart';
 
 class ConductorJornadaScreen extends ConsumerStatefulWidget {
-  const ConductorJornadaScreen({super.key});
+  const ConductorJornadaScreen({super.key, this.initialIndex = 0})
+      : assert(initialIndex >= 0 && initialIndex < 3);
+  final int initialIndex;
 
   @override
   ConsumerState<ConductorJornadaScreen> createState() =>
@@ -21,14 +25,24 @@ class ConductorJornadaScreen extends ConsumerStatefulWidget {
 class _ConductorJornadaScreenState
     extends ConsumerState<ConductorJornadaScreen> {
   int _selectedIndex = 0;
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: CustomDrawer(
+          onMenuItemTap: (_) =>
+              Navigator.of(context).popUntil((route) => route.isFirst)),
       appBar: AppBar(
-        title: Text(_selectedIndex == 0
-            ? 'Seguimiento de la Jornada Actual'
-            : 'Historial de jornadas'),
+        title: Text([
+          'Seguimiento de la Jornada Actual',
+          'Historial de jornadas',
+          'Mis Documentos'
+        ][_selectedIndex]),
         actions: [
           const TransportNotificationBell(),
           IconButton(
@@ -70,6 +84,9 @@ class _ConductorJornadaScreenState
           const MiJornadaScreen(embedded: true),
           _AccionesRegistradasTab(
               onNewAction: () => setState(() => _selectedIndex = 0)),
+          _selectedIndex == 2
+              ? const MisDocumentosScreen(embedded: true)
+              : const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -85,6 +102,10 @@ class _ConductorJornadaScreenState
               icon: Icon(Icons.history_outlined),
               selectedIcon: Icon(Icons.history),
               label: 'Historial'),
+          NavigationDestination(
+              icon: Icon(Icons.badge_outlined),
+              selectedIcon: Icon(Icons.badge),
+              label: 'Mis Documentos'),
         ],
       ),
     );

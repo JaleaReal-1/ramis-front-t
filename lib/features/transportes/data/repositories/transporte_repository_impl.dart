@@ -224,6 +224,80 @@ class TransporteRepositoryImpl {
   }
 
   // ── Helpers ─────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> listarConductores() async =>
+      (await getV3('/api/transportes/conductores') as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+  Future<List<Map<String, dynamic>>> documentos(String entidad, int id) async {
+    final rows =
+        await getV3('/api/transportes/documentos/$entidad/$id/vigencias')
+            as List;
+    return rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> historialDocumentos(
+          String entidad, int id) async =>
+      (await getV3('/api/transportes/documentos/$entidad/$id?historial=true')
+              as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+  /// Retorna false cuando el envío queda guardado para sincronización.
+  Future<bool> subirDocumento(String entidad, int id,
+      Map<String, dynamic> fields, List<int> bytes, String name) async {
+    if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+      throw const TransportFailure(
+          message: 'Adjunte un archivo de hasta 10 MB.');
+    }
+    final path = '/api/transportes/documentos/$entidad/$id';
+    final data = {...fields, 'solicitud_id': const Uuid().v4()};
+    try {
+      await _dio.post(path,
+          data: FormData.fromMap({
+            ...data,
+            'file': MultipartFile.fromBytes(bytes, filename: name)
+          }));
+      return true;
+    } on DioException catch (error) {
+      if (!_offline(error) && (error.response?.statusCode ?? 0) < 500) {
+        throw _failureFromDio(error);
+      }
+      await queue.addMultipart(path, data, bytes, name);
+      return false;
+    }
+  }
+
+  Future<void> revisarDocumento(int id, String estado, String motivo) async {
+    await postV3('/api/transportes/documentos/$id/revisar',
+        {'estado': estado, 'motivo': motivo});
+  }
+
+  Future<void> configurarAcceso(int id, String email, String password) async {
+    await _request(() => _dio.put('/api/transportes/conductores/$id/acceso',
+        data: {'email': email, 'password': password}));
+  }
+
+  Future<Map<String, dynamic>> altaConductor(
+          String dni, String nombre, String apellidos) async =>
+      _map(await postV3('/api/transportes/conductores/alta-rapida',
+          {'dni': dni, 'nombre': nombre, 'apellidos': apellidos}));
+
+  Future<Map<String, dynamic>> altaVehiculo(Map<String, dynamic> data) async =>
+      _map(await postV3('/api/transportes/vehiculos', data));
+
+  Future<List<int>> descargarArchivo(String path) async {
+    final uri = Uri.parse(path);
+    final base = Uri.parse(ApiConfig.baseUrl);
+    if (uri.hasAuthority && uri.origin != base.origin) {
+      throw const TransportFailure(
+          message: 'Archivo fuera del servidor autorizado.');
+    }
+    final response = await _request(() =>
+        _dio.get(path, options: Options(responseType: ResponseType.bytes)));
+    return List<int>.from(response.data as List);
+  }
+
   Future<dynamic> getV3(String path) async =>
       (await _request(() => _dio.get(path))).data;
   Future<dynamic> postV3(String path, Map<String, dynamic> body) async =>
@@ -238,13 +312,14 @@ class TransporteRepositoryImpl {
 
   Future<List<int>> reportePdf(
       int id, String estado, String? desde, String? hasta) async {
-    final res = await _request(() => _dio.get('/api/vehiculos/$id/reporte-pdf',
-        queryParameters: {
-          'estado': estado,
-          if (desde != null) 'desde': desde,
-          if (hasta != null) 'hasta': hasta
-        },
-        options: Options(responseType: ResponseType.bytes)));
+    final res = await _request(
+        () => _dio.get('/api/transportes/vehiculos/$id/reporte-pdf',
+            queryParameters: {
+              'estado': estado,
+              if (desde != null) 'desde': desde,
+              if (hasta != null) 'hasta': hasta
+            },
+            options: Options(responseType: ResponseType.bytes)));
     return List<int>.from(res.data as List);
   }
 
@@ -256,7 +331,8 @@ class TransporteRepositoryImpl {
   ) async {
     try {
       final response = await call();
-      if (response.requestOptions.method == 'GET') {
+      if (response.requestOptions.method == 'GET' &&
+          response.requestOptions.responseType != ResponseType.bytes) {
         try {
           await queue.cache(
               response.requestOptions.uri.toString(), response.data);

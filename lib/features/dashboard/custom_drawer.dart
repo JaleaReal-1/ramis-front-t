@@ -95,10 +95,13 @@ class CustomDrawer extends ConsumerWidget {
                 onTap: () async {
                   Navigator.pop(context);
                   await ref.read(authNotifierProvider.notifier).logout();
-                  ref.read(navigatorKeyProvider).currentState?.pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
+                  ref
+                      .read(navigatorKeyProvider)
+                      .currentState
+                      ?.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
                 },
               ),
             ],
@@ -141,22 +144,48 @@ class CustomDrawer extends ConsumerWidget {
               );
             },
           ),
+          ListTile(
+              leading: const Icon(Icons.people_alt),
+              title: const Text('Conductores'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const AdminTransportesScreen(initialIndex: 5)));
+              }),
         ],
       );
     } else {
       // Para conductor
-      return ListTile(
+      return ExpansionTile(
         leading: const Icon(Icons.local_shipping, color: AppTheme.primary),
         title: Text('Transportes', style: AppTheme.bodyMedium),
-        subtitle: Text('Acciones registradas y nueva acción',
-            style: AppTheme.bodySmall),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ConductorJornadaScreen()),
-          );
-        },
+        initiallyExpanded: true,
+        children: [
+          ListTile(
+              leading: const Icon(Icons.route),
+              title: const Text('Mi Jornada'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ConductorJornadaScreen()));
+              }),
+          ListTile(
+              leading: const Icon(Icons.badge),
+              title: const Text('Mis Documentos'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const ConductorJornadaScreen(initialIndex: 2)));
+              }),
+        ],
       );
     }
   }
@@ -172,8 +201,8 @@ class CustomDrawer extends ConsumerWidget {
       leading: Icon(icon, color: AppTheme.primary),
       title: Text(title, style: AppTheme.bodyMedium),
       onTap: () {
-        onTap(index);
         Navigator.pop(context);
+        onTap(index);
       },
     );
   }
